@@ -19,6 +19,8 @@
   <depend>roscpp</depend>
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>hebi_cpp_api</depend>
   
   <export />

@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="hebi_cpp_api_ros_examples" type="arm_node" name="arm_node" />
+</launch>

@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   genmsg
   actionlib_msgs
+  std_msgs
+  geometry_msgs
   actionlib
   hebi_cpp_api
 )
@@ -23,9 +25,16 @@ add_action_files(
   BaseMotion.action
 )
 
+add_message_files(
+  FILES
+  TargetWaypoints.msg
+)
+
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
+  geometry_msgs
+  std_msgs
   actionlib_msgs
 )
 
@@ -35,6 +44,8 @@ generate_messages(
 catkin_package(
   CATKIN_DEPENDS roscpp
   CATKIN_DEPENDS actionlib
+  CATKIN_DEPENDS std_msgs
+  CATKIN_DEPENDS geometry_msgs
   CATKIN_DEPENDS message_runtime
   CATKIN_DEPENDS hebi_cpp_api
 )
@@ -69,3 +80,7 @@ file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/gains/omni_base_gains.xml
 add_executable(omni_base_node nodes/omni_base_node.cpp robot/omni_base.cpp)
 add_dependencies(omni_base_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
+
+add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
+add_dependencies(arm_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_node ${catkin_LIBRARIES} )
