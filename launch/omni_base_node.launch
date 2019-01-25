@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="hebi_cpp_api_ros_examples" type="omni_base_node" name="omni_base_node" />
+</launch>
