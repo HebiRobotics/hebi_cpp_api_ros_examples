@@ -106,6 +106,25 @@ int main(int argc, char ** argv) {
   ros::init(argc, argv, "arm_node");
   ros::NodeHandle node;
 
+  /////////////////// Load parameters ///////////////////
+
+  // Get parameters for name/family of modules; default to standard values:
+  std::vector<std::string> families;
+  if (node.hasParam("families") && node.getParam("families", families)) {
+    ROS_INFO("Found and successfully read 'families' parameter");
+  } else {
+    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'HEBI'");
+    families = {"HEBI"};
+  }
+
+  std::vector<std::string> names;
+  if (node.hasParam("names") && node.getParam("names", names)) {
+    ROS_INFO("Found and successfully read 'names' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'names' parameter; aborting!");
+    return -1;
+  }
+
   /////////////////// Initialize arm ///////////////////
 
   // Create robot model
@@ -129,11 +148,11 @@ int main(int argc, char ** argv) {
 
   // Create arm and plan initial trajectory
   auto arm = hebi::arm::Arm::createArm(
-    {"HEBI"},                               // Family
-    {"Base", "Shoulder", "Elbow", "Wrist"}, // Names,
-    home_position,                          // Home position
-    arm_kinematics,                         // Kinematics object
-    ros::Time::now().toSec());              // Starting time (for trajectory)  
+    families,                   // Family
+    names,                      // Names
+    home_position,              // Home position
+    arm_kinematics,             // Kinematics object
+    ros::Time::now().toSec());  // Starting time (for trajectory)  
 
   if (!arm) {
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
