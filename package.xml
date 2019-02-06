@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>hebi_cpp_api_ros_examples</name>
+  <name>hebi_cpp_api_examples</name>
   <version>1.0.0</version>
   <description>Examples of using HEBI components through ROS, using the HEBI C++ API.</description>
   <maintainer email="matt@hebirobotics.com">Matthew Tesch</maintainer>
