@@ -211,7 +211,7 @@ bool OmniBase::update(double time) {
   command_.setVelocity(wheel_vel_);
 
   for (int i = 0; i < 3; ++i) {
-    command_[i].led().set(hebi::Color(0, 0, 0, 0));
+    command_[i].led().set(color_);
   }
 
   group_->sendCommand(command_);
