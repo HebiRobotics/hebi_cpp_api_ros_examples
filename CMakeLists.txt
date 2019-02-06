@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1.3)
-project(hebi_cpp_api_ros_examples)
+project(hebi_cpp_api_examples)
 
 set(CMAKE_CXX_STANDARD_REQUIRED 11)
 
