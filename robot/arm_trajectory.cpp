@@ -133,7 +133,7 @@ Eigen::VectorXd ArmTrajectory::getWaypointTimes(
   const Eigen::MatrixXd& accelerations) {
 
   // TODO: make this configurable!
-  double rampTime = 1.5;
+  double rampTime = 1.2;
 
   size_t num_waypoints = positions.cols();
 
