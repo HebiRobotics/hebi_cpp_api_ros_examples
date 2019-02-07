@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Point.h>
-#include <hebi_cpp_api_ros_examples/TargetWaypoints.h>
+#include <hebi_cpp_api_examples/TargetWaypoints.h>
 
 #include "robot/arm.hpp"
 #include "robot_model.hpp"
@@ -50,7 +50,7 @@ namespace hebi {
 
       // Replan a smooth joint trajectory from the current location through a
       // series of cartesian waypoints.
-      void updateCartesianWaypoints(hebi_cpp_api_ros_examples::TargetWaypoints target_waypoints) {
+      void updateCartesianWaypoints(hebi_cpp_api_examples::TargetWaypoints target_waypoints) {
         size_t num_waypoints = target_waypoints.waypoints_vector.size();
 
         // These are the joint angles that will be added
@@ -168,7 +168,7 @@ int main(int argc, char ** argv) {
 
   // Subscribe to lists of (x, y, z) waypoints
   ros::Subscriber waypoint_subscriber =
-    node.subscribe<hebi_cpp_api_ros_examples::TargetWaypoints>("cartesian_waypoints", 50, &hebi::ros::ArmNode::updateCartesianWaypoints, &arm_node);
+    node.subscribe<hebi_cpp_api_examples::TargetWaypoints>("cartesian_waypoints", 50, &hebi::ros::ArmNode::updateCartesianWaypoints, &arm_node);
 
   /////////////////// Main Loop ///////////////////
 
