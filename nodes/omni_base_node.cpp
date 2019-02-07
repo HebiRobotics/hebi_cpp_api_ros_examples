@@ -147,7 +147,7 @@ int main(int argc, char ** argv) {
 
   // Action server for base motions
   actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction> base_motion_action(
-    node, "base_motion",
+    node, "motion",
     boost::bind(&hebi::ros::BaseNode::startBaseMotion, &base_node, _1), false);
 
   base_node.setActionServer(&base_motion_action);
