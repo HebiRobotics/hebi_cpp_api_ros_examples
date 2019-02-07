@@ -148,7 +148,7 @@ int main(int argc, char ** argv) {
   if (node.hasParam("families") && node.getParam("families", families)) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
-    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'HEBI'");
+    ROS_WARN("Could not find/read 'families' parameter; defaulting to 'HEBI'");
     families = {"HEBI"};
   }
 
@@ -176,30 +176,48 @@ int main(int argc, char ** argv) {
     return -1;
   }
 
+  std::string hrdf_package;
+  if (node.hasParam("hrdf_package") && node.getParam("hrdf_package", hrdf_package)) {
+    ROS_INFO("Found and successfully read 'hrdf_package' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'hrdf_package' parameter; aborting!");
+    return -1;
+  }
+  std::string hrdf_file;
+  if (node.hasParam("hrdf_file") && node.getParam("hrdf_file", hrdf_file)) {
+    ROS_INFO("Found and successfully read 'hrdf_file' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'hrdf_file' parameter; aborting!");
+    return -1;
+  }
+
+  std::vector<double> home_position_vector;
+  if (node.hasParam("home_position") && node.getParam("home_position", home_position_vector)) {
+    ROS_INFO("Found and successfully read 'home_position' parameter");
+  } else {
+    ROS_WARN("Could not find/read 'home_position' parameter; defaulting to all zeros!");
+  }
+
   /////////////////// Initialize arm ///////////////////
 
-  // Create robot model
-  using ActuatorType = hebi::robot_model::RobotModel::ActuatorType;
-  using BracketType = hebi::robot_model::RobotModel::BracketType;
-  using LinkType = hebi::robot_model::RobotModel::LinkType;
+  // Load robot model
+  auto model = hebi::robot_model::RobotModel::loadHRDF(ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file);
+  hebi::arm::ArmKinematics arm_kinematics(*model);
 
-  // TODO: LOAD FROM HRDF!!!
-  hebi::robot_model::RobotModel model;
-  model.addActuator(ActuatorType::X8_9);
-  model.addBracket(BracketType::X5HeavyRightInside);
-  model.addActuator(ActuatorType::X8_16);
-  model.addLink(LinkType::X5, 0.325, M_PI);
-  model.addActuator(ActuatorType::X8_9);
-  model.addLink(LinkType::X5, 0.325, M_PI);
-  model.addActuator(ActuatorType::X5_4);
-  model.addBracket(BracketType::X5LightRight);
-  model.addActuator(ActuatorType::X5_1);
-  model.addBracket(BracketType::X5LightRight);
-  model.addActuator(ActuatorType::X5_1);
-  hebi::arm::ArmKinematics arm_kinematics(model);
-
-  Eigen::VectorXd home_position(model.getDoFCount());
-  home_position << 0.01, M_PI*2/3, M_PI*2/3, 0.01, M_PI_2, 0.01; // avoid 0s in the homeposition
+  // Get the home position, defaulting to (nearly) zero
+  Eigen::VectorXd home_position(model->getDoFCount());
+  if (home_position_vector.size() == 0) {
+    for (size_t i = 0; i < home_position.size(); ++i) {
+      home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
+    }
+  } else if (home_position_vector.size() != model->getDoFCount()) {
+    ROS_ERROR("'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
+    return -1;
+  } else {
+    for (size_t i = 0; i < home_position.size(); ++i) {
+      home_position[i] = home_position_vector[i];
+    }
+  }
 
   // Create arm and plan initial trajectory
   auto arm = hebi::arm::Arm::createArm(
@@ -239,7 +257,7 @@ int main(int argc, char ** argv) {
 
   // Action server for arm motions
   actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction> arm_motion_action(
-    node, "arm_motion",
+    node, "motion",
     boost::bind(&hebi::ros::ArmNode::startArmMotion, &arm_node, _1), false);
 
   arm_node.setActionServer(&arm_motion_action);
