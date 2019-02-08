@@ -82,6 +82,10 @@ add_executable(omni_base_node nodes/omni_base_node.cpp robot/omni_base.cpp)
 add_dependencies(omni_base_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 
+add_executable(diff_drive_node nodes/diff_drive_node.cpp robot/diff_drive.cpp)
+add_dependencies(diff_drive_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
+
 add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
 add_dependencies(arm_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
