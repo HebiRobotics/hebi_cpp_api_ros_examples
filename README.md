@@ -34,4 +34,6 @@ The remaining folders provide the action definitions, launch files, etc. used by
 
 To launch an example, run `roslaunch hebi_ros_cpp_api_examples <example name>`.
 
+(if you haven't yet, you will need to run `source devel/setup.sh` first)
+
 Depending on the example, different actions and messages are supported.  See the `README.md` files in the individual example directories for commands for each examples.
