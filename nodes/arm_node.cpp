@@ -6,6 +6,7 @@
 #include "robot_model.hpp"
 
 #include <ros/console.h>
+#include <ros/package.h>
 
 namespace hebi {
   namespace ros {
@@ -125,26 +126,65 @@ int main(int argc, char ** argv) {
     return -1;
   }
 
+  // Read the package + path for the gains file
+  std::string gains_package;
+  if (node.hasParam("gains_package") && node.getParam("gains_package", gains_package)) {
+    ROS_INFO("Found and successfully read 'gains_package' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'gains_package' parameter; aborting!");
+    return -1;
+  }
+  std::string gains_file;
+  if (node.hasParam("gains_file") && node.getParam("gains_file", gains_file)) {
+    ROS_INFO("Found and successfully read 'gains_file' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'gains_file' parameter; aborting!");
+    return -1;
+  }
+
+  // Read the package + path for the hrdf file
+  std::string hrdf_package;
+  if (node.hasParam("hrdf_package") && node.getParam("hrdf_package", hrdf_package)) {
+    ROS_INFO("Found and successfully read 'hrdf_package' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'hrdf_package' parameter; aborting!");
+    return -1;
+  }
+  std::string hrdf_file;
+  if (node.hasParam("hrdf_file") && node.getParam("hrdf_file", hrdf_file)) {
+    ROS_INFO("Found and successfully read 'hrdf_file' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'hrdf_file' parameter; aborting!");
+    return -1;
+  }
+
+  // Get the "home" position for the arm
+  std::vector<double> home_position_vector;
+  if (node.hasParam("home_position") && node.getParam("home_position", home_position_vector)) {
+    ROS_INFO("Found and successfully read 'home_position' parameter");
+  } else {
+    ROS_WARN("Could not find/read 'home_position' parameter; defaulting to all zeros!");
+  }
+
   /////////////////// Initialize arm ///////////////////
 
   // Create robot model
-  using ActuatorType = hebi::robot_model::RobotModel::ActuatorType;
-  using BracketType = hebi::robot_model::RobotModel::BracketType;
-  using LinkType = hebi::robot_model::RobotModel::LinkType;
+  auto model = hebi::robot_model::RobotModel::loadHRDF(ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file);
+  hebi::arm::ArmKinematics arm_kinematics(*model);
 
-  hebi::robot_model::RobotModel model;
-  model.addActuator(ActuatorType::X5_9);
-  model.addBracket(BracketType::X5HeavyLeftOutside );
-  model.addActuator(ActuatorType::X5_9);
-  model.addLink(LinkType::X5, 0.325, M_PI);
-  model.addActuator(ActuatorType::X5_9);
-  model.addLink(LinkType::X5, 0.325, M_PI);
-  model.addActuator(ActuatorType::X5_4);
-  model.addLink(LinkType::X5, 0.175, 0);
-  hebi::arm::ArmKinematics arm_kinematics(model);
-
-  Eigen::VectorXd home_position(model.getDoFCount());
-  home_position << 0, -M_PI*2/5, -M_PI*4/5, -M_PI_2;
+  Eigen::VectorXd home_position(model->getDoFCount());
+  if (home_position_vector.empty()) {
+    for (size_t i = 0; i < home_position.size(); ++i) {
+      home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
+    }
+  } else if (home_position_vector.size() != model->getDoFCount()) {
+    ROS_ERROR("'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
+    return -1;
+  } else {
+    for (size_t i = 0; i < home_position.size(); ++i) {
+      home_position[i] = home_position_vector[i];
+    }
+  }
 
   // Create arm and plan initial trajectory
   auto arm = hebi::arm::Arm::createArm(

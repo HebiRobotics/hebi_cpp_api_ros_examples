@@ -12,7 +12,9 @@ Set the `families` and `names` parameters to lists of strings, ordered from prox
 
 Note: if all families are the same, this parameter can be a length one vector.
 
-Note: the `arm_node_action` currently requires additional parameters to be set for the location of the gains, HRDF file, and home position of the system.  These will be added to the launch file example in an upcoming commit.
+You may also need to modify the parameters for the location of the gains file, HRDF file, and home position of the system.
+
+Default values for all parameters are given in the launch files.
 
 ## To run:
 

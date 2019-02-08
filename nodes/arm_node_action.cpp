@@ -176,6 +176,7 @@ int main(int argc, char ** argv) {
     return -1;
   }
 
+  // Read the package + path for the hrdf file
   std::string hrdf_package;
   if (node.hasParam("hrdf_package") && node.getParam("hrdf_package", hrdf_package)) {
     ROS_INFO("Found and successfully read 'hrdf_package' parameter");
@@ -191,6 +192,7 @@ int main(int argc, char ** argv) {
     return -1;
   }
 
+  // Get the "home" position for the arm
   std::vector<double> home_position_vector;
   if (node.hasParam("home_position") && node.getParam("home_position", home_position_vector)) {
     ROS_INFO("Found and successfully read 'home_position' parameter");
@@ -206,7 +208,7 @@ int main(int argc, char ** argv) {
 
   // Get the home position, defaulting to (nearly) zero
   Eigen::VectorXd home_position(model->getDoFCount());
-  if (home_position_vector.size() == 0) {
+  if (home_position_vector.empty()) {
     for (size_t i = 0; i < home_position.size(); ++i) {
       home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
     }
