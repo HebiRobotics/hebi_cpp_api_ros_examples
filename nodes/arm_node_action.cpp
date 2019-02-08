@@ -208,7 +208,7 @@ int main(int argc, char ** argv) {
 
   // Get the home position, defaulting to (nearly) zero
   Eigen::VectorXd home_position(model->getDoFCount());
-  if (home_position_vector.size() == 0) {
+  if (home_position_vector.empty()) {
     for (size_t i = 0; i < home_position.size(); ++i) {
       home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
     }
