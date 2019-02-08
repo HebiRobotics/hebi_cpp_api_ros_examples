@@ -1,0 +1,9 @@
+<launch>
+  <!-- Parameters for the module names -->
+  <rosparam>
+    names: [ "Left", "Right" ]
+    families: [ "DiffDrive" ]
+  </rosparam>
+
+  <node pkg="hebi_cpp_api_examples" type="diff_drive_node" name="diff_drive_node" />
+</launch>
