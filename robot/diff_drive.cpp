@@ -1,24 +1,12 @@
 #include "diff_drive.hpp"
 
-// TODO: move to diff drive file...
-/*    // We pass in the trajectory points in (x, y, theta)... 
-    size_t num_waypoints = 1;
-    Eigen::MatrixXd waypoints(3, num_waypoints);
-
-    waypoints(0, 0) = goal->x;
-    waypoints(1, 0) = goal->y;
-    waypoints(2, 0) = goal->theta;
-    base_.getTrajectory().replan(
-      ::ros::Time::now().toSec(),
-      waypoints);*/
-
 namespace hebi {
 
 DiffDriveTrajectory DiffDriveTrajectory::create(const Eigen::VectorXd& dest_positions, double t_now) {
   DiffDriveTrajectory base_trajectory;
 
   // Set up initial trajectory
-  Eigen::MatrixXd positions(3, 1);
+  Eigen::MatrixXd positions(2, 1);
   positions.col(0) = dest_positions;
   base_trajectory.replan(t_now, positions);
 
@@ -114,18 +102,13 @@ Eigen::VectorXd DiffDriveTrajectory::getWaypointTimes(
   const Eigen::MatrixXd& accelerations) {
 
   // TODO: make this configurable!
-  double rampTime = 4.0; // Per meter
+  double rampTime = 0.5; // Per meter
   double dist = std::pow(positions(0, 1) - positions(0, 0), 2) + 
                 std::pow(positions(1, 1) - positions(1, 0), 2);
   dist = std::sqrt(dist);
 
-  static constexpr double base_radius = 0.235; // m (center of omni to origin of base)
-  double rot_dist = std::abs(positions(2, 1) - positions(2, 0)) * base_radius;
-
-  dist += rot_dist;
-
   rampTime *= dist;
-  rampTime = std::max(rampTime, 1.5);
+  rampTime = std::max(rampTime, 1.25);
 
   size_t num_waypoints = positions.cols();
 
@@ -193,42 +176,25 @@ std::unique_ptr<DiffDrive> DiffDrive::create(
 
   // NOTE: I don't like that start time is _before_ the "get feedback"
   // loop above...but this is only during initialization
-  DiffDriveTrajectory base_trajectory = DiffDriveTrajectory::create(Eigen::Vector3d::Zero(), start_time);
-  return std::unique_ptr<DiffDrive>(new DiffDrive(group, base_trajectory, start_time));
+  DiffDriveTrajectory base_trajectory = DiffDriveTrajectory::create(Eigen::Vector2d::Zero(), start_time);
+  return std::unique_ptr<DiffDrive>(new DiffDrive(group, base_trajectory, feedback, start_time));
 }
 
 bool DiffDrive::update(double time) {
-
-  double dt = 0; 
-  if (last_time_ < 0) { // Sentinal value set when we restart...
-    last_time_ = time;
-  } else {
-    dt = time - last_time_;
-  }
 
   if (!group_->getNextFeedback(feedback_))
     return false;
 
   // Update command from trajectory
   base_trajectory_.getState(time, pos_, vel_, accel_);
-
-  // Convert from x/y/theta to wheel 1/2/3
-  convertSE2ToWheel();
-
-  // Integrate position using wheel velocities.
-  last_wheel_pos_ += wheel_vel_ * dt;
-  command_.setPosition(last_wheel_pos_);
-
-  // Use velocity from trajectory, converted from x/y/theta into wheel velocities above.
-  command_.setVelocity(wheel_vel_);
+  command_.setPosition(start_wheel_pos_ + pos_);
+  command_.setVelocity(vel_);
 
   for (int i = 0; i < 3; ++i) {
     command_[i].led().set(color_);
   }
 
   group_->sendCommand(command_);
-
-  last_time_ = time;
 
   return true; 
 }
@@ -241,19 +207,45 @@ bool DiffDrive::isTrajectoryComplete(double time) {
   return time > base_trajectory_.getTrajEndTime();
 }
   
-void DiffDrive::resetStart(Color& color) {
-  start_wheel_pos_ = feedback_.getPosition();
-  last_wheel_pos_ = start_wheel_pos_;
-  last_time_ = -1;
+void DiffDrive::setColor(Color& color) {
   color_ = color;
 }
 
-void DiffDrive::startRotateBy(float radians) {
-  // TODO: IMPL
+void DiffDrive::startRotateBy(float theta, double time) {
+  start_wheel_pos_ = feedback_.getPosition();
+
+  // Note: to rotate by 'theta', each wheel needs to move
+  // 'base_radius_ * theta'.
+  // For a wheel to move 'd', it needs to rotate by
+  // 'd / wheel_radius_' radians.
+  // So, we need to rotate each wheel by
+  // 'base_radius_ * theta / wheel_radius_'
+  float wheel_theta = base_radius_ * theta / wheel_radius_;
+
+  // [L; R] final wheel positions
+  Eigen::MatrixXd waypoints(2, 1);
+  // Because of the way the actuators are mounted, rotating in
+  // the '-z' actuator direction will move the robot in a
+  // positive robot-frame direction.
+  waypoints(0, 0) = -wheel_theta; 
+  waypoints(1, 0) = -wheel_theta; 
+  base_trajectory_.replan(time, waypoints);
 }
 
-void DiffDrive::startMoveForward(float distance) {
-  // TODO: IMPL
+void DiffDrive::startMoveForward(float distance, double time) {
+  start_wheel_pos_ = feedback_.getPosition();
+
+  // Note: to move by 'distance', each wheel must move
+  // together by 'distance / wheel_radius_' radians.
+
+  float wheel_theta = distance / wheel_radius_;
+  // [L; R] final wheel positions
+  Eigen::MatrixXd waypoints(2, 1);
+  // Because of the way the actuators are mounted, we negate
+  // the left actuator to move forward.
+  waypoints(0, 0) = wheel_theta; 
+  waypoints(1, 0) = -wheel_theta; 
+  base_trajectory_.replan(time, waypoints);
 }
 
 void DiffDrive::clearColor() {
@@ -263,6 +255,7 @@ void DiffDrive::clearColor() {
   
 DiffDrive::DiffDrive(std::shared_ptr<Group> group,
   DiffDriveTrajectory base_trajectory,
+  const GroupFeedback& feedback,
   double start_time)
   : group_(group),
     feedback_(group->size()),
@@ -270,42 +263,9 @@ DiffDrive::DiffDrive(std::shared_ptr<Group> group,
     pos_(Eigen::VectorXd::Zero(group->size())),
     vel_(Eigen::VectorXd::Zero(group->size())),
     accel_(Eigen::VectorXd::Zero(group->size())),
-    start_wheel_pos_(Eigen::VectorXd::Zero(group->size())),
-    last_wheel_pos_(Eigen::VectorXd::Zero(group->size())),
-    wheel_vel_(Eigen::VectorXd::Zero(group->size())),
+    start_wheel_pos_(feedback.getPosition()),
     base_trajectory_{base_trajectory}
-{}
-
-// Converts a certain number of radians into radians that each wheel would turn
-// _from theta == 0_ to obtain this rotation.
-// Note: we only do this for velocities in order to combine rotations and translations without doing gnarly
-// integrations.
-double DiffDrive::convertSE2ToWheel() {
-
-  double theta = pos_[2];
-  double dtheta = vel_[2];
-
-  double offset = 1.0;
-  double ctheta = std::cos(-theta);
-  double stheta = std::sin(-theta);
-  double dx = vel_[0] * ctheta - vel_[1] * stheta;
-  double dy = vel_[0] * stheta + vel_[1] * ctheta;
-  dx /= wheel_radius_;
-  dy /= wheel_radius_;
-  double ratio = sqrt(3)/2;
-
-  //////////////
-  // Velocity:
-  //////////////
-
-  // Rotation
-  wheel_vel_[0] =
-  wheel_vel_[1] =
-  wheel_vel_[2] = -dtheta * base_radius_ / wheel_radius_;
-  // Translation
-  wheel_vel_[0] += - 0.5 * dy - ratio * dx;
-  wheel_vel_[1] += - 0.5 * dy + ratio * dx;
-  wheel_vel_[2] += dy;
+{
 }
 
 }

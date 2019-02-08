@@ -13,19 +13,15 @@
 /**
  * diff_drive.hpp
  *
- * This file provides an implementation in C++ of an diff drive base, such as that on
- * HEBI's "Rosie" kit.
+ * This file provides an implementation in C++ of an diff drive base.
  *
  * The current implementation provides code for commanding smooth motions of the base.
  */
 
 namespace hebi {
 
-// TODO: DiffDriveTrajectory is _almost_ identical to ArmTrajectory.  Maybe combine
-// these?
-
-// Note: base trajectory doesn't allow for smooth replanning, because that would be...difficult.  It just
-// represents relative motion in (x, y, theta)
+// Note: base trajectory doesn't allow for smooth replanning, because that would be...difficult.  This
+// just represents the raw motion of the joints (left, right).
 
 class DiffDriveTrajectory {
 public:
@@ -45,7 +41,7 @@ public:
     const Eigen::MatrixXd& new_positions);
 
   // Heuristic to get the timing of the waypoints. This function can be
-// modified to add custom waypoint timing.
+  // modified to add custom waypoint timing.
   Eigen::VectorXd getWaypointTimes(
     const Eigen::MatrixXd& positions,
     const Eigen::MatrixXd& velocities,
@@ -86,28 +82,26 @@ public:
   bool isTrajectoryComplete(double time);
 
   GroupFeedback& getLastFeedback() { return feedback_; }
-  DiffDriveTrajectory& getTrajectory() { return base_trajectory_; }
 
-  // Reset before commanding a new trajectory.
-  void resetStart(Color& color);
+  // Set color (usually before commanding a new trajectory)
+  void setColor(Color& color);
 
   // Replan trajectory for pure rotation
-  void startRotateBy(float radians);
+  void startRotateBy(float radians, double current_time);
   // Replan trajectory for pure translation
-  void startMoveForward(float distance);
+  void startMoveForward(float distance, double current_time);
 
   void clearColor();
 
 private:
   DiffDrive(std::shared_ptr<Group> group,
     DiffDriveTrajectory base_trajectory,
+    const GroupFeedback& feedback,
     double start_time);
 
-  double convertSE2ToWheel();
-
   /* Declare main kinematic variables */
-  static constexpr double wheel_radius_ = 0.0762; // m
-  static constexpr double base_radius_ = 0.235; // m (center of omni to origin of base)
+  static constexpr double wheel_radius_ = 0.10; // m
+  static constexpr double base_radius_ = 0.43; // m (half of distance between center of diff drive wheels)
 
   std::shared_ptr<Group> group_;
 
@@ -120,12 +114,8 @@ private:
   Eigen::VectorXd vel_;
   Eigen::VectorXd accel_;
   Eigen::VectorXd start_wheel_pos_;
-  Eigen::VectorXd last_wheel_pos_;
-  Eigen::VectorXd wheel_vel_;
 
   DiffDriveTrajectory base_trajectory_;
-
-  double last_time_{-1};
 
   Color color_;
 };

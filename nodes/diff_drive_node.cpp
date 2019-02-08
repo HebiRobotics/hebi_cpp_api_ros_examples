@@ -23,7 +23,7 @@ class BaseNode {
 public:
   BaseNode(DiffDrive& base) : base_(base) {
     Color c;
-    base_.resetStart(c);
+    base_.clearColor();
   }
 
   // Returns "false" if we have error...
@@ -43,7 +43,6 @@ public:
       auto t = ::ros::Time::now().toSec();
 
       // Publish progress:
-      auto& base_traj = base_.getTrajectory();
       feedback.percent_complete = start_prog + (end_prog - start_prog) * base_.trajectoryPercentComplete(t) / 2.0;
       action_server_->publishFeedback(feedback);
  
@@ -67,25 +66,29 @@ public:
     Color color;
     if (goal->set_color)
       color = Color(goal->r, goal->g, goal->b, 255);
-    base_.resetStart(color);
+    base_.setColor(color);
 
     // Face towards (x, y), assuming we start pointed with the x axis forward and the y axis left:
     bool success = true;
     if (goal->x != 0 || goal->y != 0)
     {
-      base_.startRotateBy(std::atan2(goal->y, goal->x));
+      base_.startRotateBy(std::atan2(goal->y, goal->x),
+          ::ros::Time::now().toSec());
       success = publishActionProgress(0.0, 0.33);
       if (success) {
-        base_.startMoveForward(std::sqrt(goal->x * goal->x + goal->y * goal->y));
+        base_.startMoveForward(std::sqrt(goal->x * goal->x + goal->y * goal->y),
+          ::ros::Time::now().toSec());
         success = publishActionProgress(0.33, 0.67);
       }
       if (success) {
-        base_.startRotateBy(-std::atan2(goal->y, goal->x) + goal->theta);
+        base_.startRotateBy(-std::atan2(goal->y, goal->x) + goal->theta,
+          ::ros::Time::now().toSec());
         success = publishActionProgress(0.67, 1.0);
       }
     } else {
       // Pure rotation:
-      base_.startRotateBy(goal->theta);
+      base_.startRotateBy(goal->theta,
+          ::ros::Time::now().toSec());
       success = publishActionProgress(0.0, 1.0);
     }
 
