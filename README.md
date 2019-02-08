@@ -14,6 +14,7 @@ Create/navigate to the directory you wish to be your ROS workspace.  Then run th
 
 ```
 mkdir src
+cd src
 git clone git@github.com:HebiRobotics/hebi_cpp_api_ros.git
 git clone git@github.com:HebiRobotics/hebi_cpp_api_ros_examples.git
 cd ..
