@@ -21,47 +21,6 @@ class ArmNode {
 public:
   ArmNode(arm::Arm& arm) : arm_(arm) { }
 
-  // Replan a smooth joint trajectory from the current location through a
-  // series of cartesian waypoints.
-  // xyz positions should be a 3xn vector of target positions
-  void updateCartesianWaypoints(const Eigen::Matrix3Xd& xyz_positions,
-      const Eigen::Matrix3Xd& end_tip_directions) {
-    // Data sanity check:
-    if (end_tip_directions.cols() > 0 && end_tip_directions.cols() != xyz_positions.cols())
-      return;
-
-    // Update stored target position:
-    target_xyz_ = xyz_positions.col(xyz_positions.cols() - 1);
-
-    // These are the joint angles that will be added
-    auto num_waypoints = xyz_positions.cols();
-    Eigen::MatrixXd positions(arm_.size(), num_waypoints);
-
-    // Plan to each subsequent point from the last position
-    // (We use the last position command for smoother motion)
-    Eigen::VectorXd last_position = arm_.getLastFeedback().getPositionCommand();
-
-    // Get joint angles to move to each waypoint
-    for (size_t i = 0; i < num_waypoints; ++i) {
-
-      // Find the joint angles for the next waypoint, starting from the last
-      // waypoint, and save into the position vector.
-      if (end_tip_directions.cols() > 0) {
-        // If we are given tip directions, add these too...
-        last_position = arm_.getKinematics().solveIK(last_position, xyz_positions.col(i), end_tip_directions.col(i));
-      } else {
-        last_position = arm_.getKinematics().solveIK(last_position, xyz_positions.col(i));
-      }
-      positions.col(i) = last_position; 
-    }
-
-    // Replan:
-    arm_.getTrajectory().replan(
-      ::ros::Time::now().toSec(),
-      arm_.getLastFeedback(),
-      positions);
-  }
-
   void updateCartesianWaypoints(hebi_cpp_api_examples::TargetWaypoints target_waypoints) {
     action_server_->setAborted();
 
@@ -76,8 +35,7 @@ public:
     }
 
     // Replan
-    Eigen::Matrix3Xd tip_directions(3, 0);
-    updateCartesianWaypoints(xyz_waypoints, tip_directions);
+    updateCartesianWaypoints(xyz_waypoints);
   }
 
   // Set the target end effector location in (x,y,z) space, replanning
@@ -92,8 +50,7 @@ public:
     xyz_waypoints(2, 0) = data.z;
 
     // Replan
-    Eigen::Matrix3Xd tip_directions(3, 0);
-    updateCartesianWaypoints(xyz_waypoints, tip_directions);
+    updateCartesianWaypoints(xyz_waypoints);
   }
 
   // "Jog" the target end effector location in (x,y,z) space, replanning
@@ -120,8 +77,7 @@ public:
     xyz_waypoints(2, 0) = target_xyz_.z() + data.z;
 
     // Replan
-    Eigen::Matrix3Xd tip_directions(3, 0);
-    updateCartesianWaypoints(xyz_waypoints, tip_directions);
+    updateCartesianWaypoints(xyz_waypoints);
   }
 
   void startArmMotion(const hebi_cpp_api_examples::ArmMotionGoalConstPtr& goal) {
@@ -161,7 +117,7 @@ public:
       }
     }
 
-    updateCartesianWaypoints(xyz_positions, tip_directions);
+    updateCartesianWaypoints(xyz_positions, &tip_directions);
 
     Color color;
     if (goal->set_color)
@@ -220,19 +176,65 @@ private:
   arm::Arm& arm_;
 
   // The end effector location that this arm will target (NaN indicates
-  // unitialized state, and will be set from feedback during first offset)
+  // unitialized state, and will be set from feedback during first
+  // command)
   Eigen::Vector3d target_xyz_{
     std::numeric_limits<double>::quiet_NaN(),
     std::numeric_limits<double>::quiet_NaN(),
     std::numeric_limits<double>::quiet_NaN()};
+
+  actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction>* action_server_ {nullptr};
+
+  // Helper function that indicates whether or not was have received a
+  // command yet.
   bool isTargetInitialized() {
     return !std::isnan(target_xyz_.x()) ||
            !std::isnan(target_xyz_.y()) ||
            !std::isnan(target_xyz_.z());
   }
+  // Helper function to condense functionality between various message/action callbacks above
+  // Replan a smooth joint trajectory from the current location through a
+  // series of cartesian waypoints.
+  // xyz positions should be a 3xn vector of target positions
+  void updateCartesianWaypoints(const Eigen::Matrix3Xd& xyz_positions,
+      const Eigen::Matrix3Xd* end_tip_directions = nullptr) {
+    // Data sanity check:
+    if (end_tip_directions && end_tip_directions->cols() != xyz_positions.cols())
+      return;
 
+    // Update stored target position:
+    target_xyz_ = xyz_positions.col(xyz_positions.cols() - 1);
 
-  actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction>* action_server_ {nullptr};
+    // These are the joint angles that will be added
+    auto num_waypoints = xyz_positions.cols();
+    Eigen::MatrixXd positions(arm_.size(), num_waypoints);
+
+    // Plan to each subsequent point from the last position
+    // (We use the last position command for smoother motion)
+    Eigen::VectorXd last_position = arm_.getLastFeedback().getPositionCommand();
+
+    // For each waypoint, find the joint angles to move to it, starting from the last
+    // waypoint, and save into the position vector.
+    if (end_tip_directions) {
+      // If we are given tip directions, add these too...
+      for (size_t i = 0; i < num_waypoints; ++i) {
+        last_position = arm_.getKinematics().solveIK(last_position, xyz_positions.col(i), end_tip_directions->col(i));
+        positions.col(i) = last_position; 
+      }
+    } else {
+      for (size_t i = 0; i < num_waypoints; ++i) {
+        last_position = arm_.getKinematics().solveIK(last_position, xyz_positions.col(i));
+        positions.col(i) = last_position; 
+      }
+    }
+
+    // Replan:
+    arm_.getTrajectory().replan(
+      ::ros::Time::now().toSec(),
+      arm_.getLastFeedback(),
+      positions);
+  }
+ 
 };
 
 } // namespace ros
@@ -342,11 +344,9 @@ int main(int argc, char ** argv) {
     hebi::GroupCommand gains_cmd(arm -> size());
     if (!gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file))
       ROS_ERROR("Could not load arm gains file!");
-    else
-    {
+    else {
       bool success = false;
-      for (size_t i = 0; i < 5; ++i)
-      {
+      for (size_t i = 0; i < 5; ++i) {
         success = arm->getGroup()->sendCommandWithAcknowledgement(gains_cmd);
         if (success)
           break;
