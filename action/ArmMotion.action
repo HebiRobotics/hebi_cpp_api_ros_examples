@@ -12,7 +12,6 @@ uint8 r
 uint8 g
 uint8 b
 ---
-bool success
 ---
 float64 percent_complete
 
