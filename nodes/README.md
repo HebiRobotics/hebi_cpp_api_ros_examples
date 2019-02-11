@@ -14,40 +14,41 @@ Note: if all families are the same, this parameter can be a length one vector.
 
 You may also need to modify the parameters for the location of the gains file, HRDF file, and home position of the system.
 
-Default values for all parameters are given in the launch files.
+Default values for all parameters are given in the `launch/arm_node*.launch` files.
 
 ## To run:
 
 ```
-roslaunch hebi_cpp_api_ros_examples arm_node.launch
-```
-
-or
-
-```
-roslaunch hebi_cpp_api_ros_examples arm_node_action.launch
+roslaunch hebi_cpp_api_ros_examples arm_node<configuration>.launch
 ```
 
 ## To command:
 
 ### `arm_node`
 
-- Publish `geometry_msgs::Point` messages on the `keys/cmd_vel` channel to jog the end effector in a certain cartesian direction relative to the base.
+Note: you can use `rostopic pub` on the command line for the following `publish` lines; press tab to see the available channels, message types, and to create a basic filled out YAML message that you can edit.  For more advanced editing, copy the message into a text editor and paste back the full message.
+
+- Publish `geometry_msgs::Point` messages on the `offset_target` channel to jog the end effector in a certain cartesian direction relative to the base. (The initial "offset" value is taken from the actuator's current position.)
+
+or
+
+- Publish `geometry_msgs::Point` messages on the `set_target` channel to set the end effector cartesian position relative to the base.
 
 or
 
 - Publish `hebi_cpp_api_ros_examples::TargetWaypoint` messages on the `cartesian_waypoints` channel to command a series of cartesian waypoints for the arm to pass through.
 
-Note: you can use `rostopic pub` on the command line for this; press tab to see the available channels, message types, and to create a basic filled out YAML message that you can edit.
+or
 
-### `arm_node_action`
+- Use a ROS action to command the system; you can send actions on the `motion` action server topic.  For a quick test, type:
 
-- This uses ros actions to command the system; you can send actions on the `motion` action server topic.  For a quick test, type:
 ```
 rostopic pub /motion/
 ```
 
 and then press tab to complete the message type and create a basic yaml message on the command line.  The commanded location and color fields can be changed to cause the robot to move to a given desired (x,y,z) position or change LED colors.
+
+Any action currently running is preempted if a subsequent action is sent, or cancelled if a message is received on one of the other channels.
 
 # Base nodes (`omni_base_node`, `diff_drive_node`)
 

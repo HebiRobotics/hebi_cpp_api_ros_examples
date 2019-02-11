@@ -89,7 +89,3 @@ target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
 add_dependencies(arm_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
-
-add_executable(arm_node_action nodes/arm_node_action.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
-add_dependencies(arm_node_action ${catkin_EXPORTED_TARGETS})
-target_link_libraries(arm_node_action ${catkin_LIBRARIES} )
