@@ -1,5 +1,5 @@
-#include "group_command.hpp"
-#include "color.hpp"
+#include "hebi_cpp_api/group_command.hpp"
+#include "hebi_cpp_api/color.hpp"
 #include "arm_trajectory.hpp"
 #include "arm_kinematics.hpp"
 

@@ -2,11 +2,11 @@
 
 #include <memory>
 
-#include "group.hpp"
-#include "group_command.hpp"
-#include "group_feedback.hpp"
-#include "lookup.hpp"
-#include "trajectory.hpp"
+#include "hebi_cpp_api/group.hpp"
+#include "hebi_cpp_api/group_command.hpp"
+#include "hebi_cpp_api/group_feedback.hpp"
+#include "hebi_cpp_api/lookup.hpp"
+#include "hebi_cpp_api/trajectory.hpp"
 
 #include "Eigen/Dense"
 
