@@ -1,5 +1,5 @@
-#include "trajectory.hpp"
-#include "group.hpp"
+#include "hebi_cpp_api/trajectory.hpp"
+#include "hebi_cpp_api/group.hpp"
 
 namespace hebi {
 namespace arm {

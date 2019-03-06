@@ -1,5 +1,5 @@
-#include "robot_model.hpp"
-#include "group_feedback.hpp"
+#include "hebi_cpp_api/robot_model.hpp"
+#include "hebi_cpp_api/group_feedback.hpp"
 
 namespace hebi {
 namespace arm {
