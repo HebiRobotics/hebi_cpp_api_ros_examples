@@ -72,7 +72,7 @@ public:
     bool success = true;
     if (goal->x != 0 || goal->y != 0)
     {
-      base_.startRotateBy(std::atan2(goal->y, goal->x),
+      base_.startRotateBy(-std::atan2(goal->y, goal->x),
           ::ros::Time::now().toSec());
       success = publishActionProgress(0.0, 0.33);
       if (success) {
@@ -81,7 +81,7 @@ public:
         success = publishActionProgress(0.33, 0.67);
       }
       if (success) {
-        base_.startRotateBy(-std::atan2(goal->y, goal->x) + goal->theta,
+        base_.startRotateBy(+std::atan2(goal->y, goal->x) + goal->theta,
           ::ros::Time::now().toSec());
         success = publishActionProgress(0.67, 1.0);
       }
@@ -120,7 +120,12 @@ int main(int argc, char ** argv) {
 
   // Initialize ROS node
   ros::init(argc, argv, "diff_drive_node");
+
+  ROS_WARN("POST INIT");
+
   ros::NodeHandle node;
+
+  ROS_WARN("POST INIT#2");
 
   // Get parameters for name/family of modules; default to standard values:
   std::vector<std::string> families;
@@ -141,6 +146,8 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize base ///////////////////
 
+  ROS_WARN("POST INIT#3");
+
   // Create base and plan initial trajectory
   std::string error_out;
   auto base = hebi::DiffDrive::create(
@@ -156,18 +163,20 @@ int main(int argc, char ** argv) {
   }
 
   /////////////////// Initialize ROS interface ///////////////////
-   
+  ROS_WARN("POST INIT#4");
   hebi::ros::BaseNode base_node(*base);
+
+  ROS_WARN("POST INIT#5");
 
   // Action server for base motions
   actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction> base_motion_action(
     node, "motion",
     boost::bind(&hebi::ros::BaseNode::startBaseMotion, &base_node, _1), false);
-
+  ROS_WARN("POST INIT#6");
   base_node.setActionServer(&base_motion_action);
-
+  ROS_WARN("POST INIT#7");
   base_motion_action.start();
-
+  ROS_WARN("POST INIT#8");
   /////////////////// Main Loop ///////////////////
 
   double t_now;

@@ -221,6 +221,7 @@ void DiffDrive::startRotateBy(float theta, double time) {
   // So, we need to rotate each wheel by
   // 'base_radius_ * theta / wheel_radius_'
   float wheel_theta = base_radius_ * theta / wheel_radius_;
+  wheel_theta /= 2.0f; // added
 
   // [L; R] final wheel positions
   Eigen::MatrixXd waypoints(2, 1);
