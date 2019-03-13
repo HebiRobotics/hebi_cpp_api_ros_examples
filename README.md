@@ -8,6 +8,8 @@ This repository demonstrates integration of the HEBI C++ API with ROS, as well a
 
 You must have ROS kinetic, lunar, or melodic installed.  See http://wiki.ros.org/ROS/Installation.  We recommend the "Desktop Full" installation.  This package may work on other installations of ROS as well.
 
+For `kinetic` or `melodic`, you can use the HEBI C++ API ROS package (`ros-<distro>-hebi_cpp_api`) available from your package manager; for `lunar` you will need to clone the following repository alongside the API examples in your catkin workspace's `src` folder: `git clone git@github.com:HebiRobotics/hebi_cpp_api_ros.git`
+
 ## Checkout
 
 Create/navigate to the directory you wish to be your ROS workspace.  Then run the following commands to pull this repository and the HEBI C++ API ROS wrapper.
@@ -15,7 +17,6 @@ Create/navigate to the directory you wish to be your ROS workspace.  Then run th
 ```
 mkdir src
 cd src
-git clone git@github.com:HebiRobotics/hebi_cpp_api_ros.git
 git clone git@github.com:HebiRobotics/hebi_cpp_api_ros_examples.git
 cd ..
 catkin_make
