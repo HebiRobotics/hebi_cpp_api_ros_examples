@@ -36,7 +36,8 @@ void ArmTrajectory::replan(
   const GroupFeedback& feedback,
   const Eigen::MatrixXd& new_positions,
   const Eigen::MatrixXd& new_velocities,
-  const Eigen::MatrixXd& new_accelerations) {
+  const Eigen::MatrixXd& new_accelerations,
+  const Eigen::VectorXd& times) {
 
   int num_joints = new_positions.rows();
 
@@ -73,13 +74,34 @@ void ArmTrajectory::replan(
   accelerations.rightCols(num_waypoints - 1) = new_accelerations;
 
   // Get waypoint times
-  Eigen::VectorXd trajTime =
-    getWaypointTimes(positions, velocities, accelerations);
+  Eigen::VectorXd trajTime(num_waypoints);
+  // If time vector is empty, automatically determine times
+  if (times.size() == 0) {
+    trajTime = getWaypointTimes(positions, velocities, accelerations);
+  } else {
+    trajTime(0) = 0;
+    trajTime.tail(num_waypoints - 1) = times;
+  }
 
   // Create new trajectory
   trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
                   trajTime, positions, &velocities, &accelerations);
   trajectory_start_time_ = t_now;
+}
+
+// Updates the Arm State by planning a trajectory to a given set of joint
+// waypoints.  Uses the current trajectory/state if defined.
+// NOTE: this call assumes feedback is populated.
+void ArmTrajectory::replan(
+  double t_now,
+  const GroupFeedback& feedback,
+  const Eigen::MatrixXd& new_positions,
+  const Eigen::MatrixXd& new_velocities,
+  const Eigen::MatrixXd& new_accelerations) {
+
+  // Call parent function with empty times matrix to trigger auto-time-determination
+  VectorXd empty_times(0);
+  replan(t_now, feedback, new_positions, new_velocities, new_accelerations, empty_times);
 }
 
 // Updates the Arm State by planning a trajectory to a given set of joint

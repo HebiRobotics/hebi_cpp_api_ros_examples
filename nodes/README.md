@@ -4,7 +4,7 @@ These examples demonstrate use of the C++ API directly from ROS nodes. These wra
 
 **Important: to run any of these commands, you will need to run `source devel/setup.sh` from your catkin workspace first**
 
-# Arm (`arm_node`, `arm_node_action`)
+# Arm (`arm_node`)
 
 ## Requirements:
 
@@ -24,21 +24,60 @@ roslaunch hebi_cpp_api_ros_examples arm_node<configuration>.launch
 
 ## To command:
 
-### `arm_node`
 
 Note: you can use `rostopic pub` on the command line for the following `publish` lines; press tab to see the available channels, message types, and to create a basic filled out YAML message that you can edit.  For more advanced editing, copy the message into a text editor and paste back the full message.
 
+### `offset_target`
+
 - Publish `geometry_msgs::Point` messages on the `offset_target` channel to jog the end effector in a certain cartesian direction relative to the base. (The initial "offset" value is taken from the actuator's current position.)
 
-or
+### `set_target`
 
-- Publish `geometry_msgs::Point` messages on the `set_target` channel to set the end effector cartesian position relative to the base.
+- Publish `geometry_msgs::Point messages on the `set_target` channel to set the end effector cartesian position relative to the base.
 
-or
+### `cartesian_waypoints`
 
 - Publish `hebi_cpp_api_ros_examples::TargetWaypoint` messages on the `cartesian_waypoints` channel to command a series of cartesian waypoints for the arm to pass through.
 
-or
+### `joint_waypoints`
+
+- Publish trajectory_msgs::JointTrajectory messages on the `joint_waypoints` channel to command a series of joint-space waypoints for the arm to pass through.
+
+Note: for the JointTrajectory messages, you can ignore the header and the "names" fields, as well as the "efforts".  You must fill in the "positions", "velocities", and "accelerations" vectors for each waypoint, along with the desired `time_from_start` for each waypoint (these must be monotonically increasing).  For example, the following would be a valid motion for a 6-DoF arm:
+
+```
+rostopic pub /joint_waypoints trajectory_msgs/JointTrajectory "header:
+  seq: 0
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: ''
+joint_names:
+- ''
+points:
+- positions: [0.51, 2.09439, 2.09439, 0.01, 1.5707963, 0.01]
+  velocities: [0, 0, 0, 0, 0, 0]
+  accelerations: [0, 0, 0, 0, 0, 0]
+  effort: []
+  time_from_start: {secs: 0, nsecs: 0}
+- positions: [0.01, 2.09439, 2.09439, 0.01, 1.5707963, 0.01]
+  velocities: [0, 0, 0, 0, 0, 0]
+  accelerations: [0, 0, 0, 0, 0, 0]
+  effort: []
+  time_from_start: {secs: 5, nsecs: 0}
+- positions: [-0.51, 2.09439, 2.09439, 0.01, 1.5707963, 0.01]
+  velocities: [0, 0, 0, 0, 0, 0]
+  accelerations: [0, 0, 0, 0, 0, 0]
+  effort: []
+  time_from_start: {secs: 10, nsecs: 0}" 
+- positions: [-0.01, 2.09439, 2.09439, 0.01, 1.5707963, 0.01]
+  velocities: [0, 0, 0, 0, 0, 0]
+  accelerations: [0, 0, 0, 0, 0, 0]
+  effort: []
+  time_from_start: {secs: 15, nsecs: 0}"
+```
+
+### `motion` action
 
 - Use a ROS action to command the system; you can send actions on the `motion` action server topic.  For a quick test, type:
 

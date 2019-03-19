@@ -26,6 +26,17 @@ public:
     const GroupFeedback& feedback,
     const Eigen::MatrixXd& new_positions,
     const Eigen::MatrixXd& new_velocities,
+    const Eigen::MatrixXd& new_accelerations,
+    const Eigen::VectorXd& times);
+
+  // Updates the Arm State by planning a trajectory to a given set of joint
+  // waypoints.  Uses the current trajectory/state if defined.
+  // NOTE: this call assumes feedback is populated.
+  void replan(
+    double t_now,
+    const GroupFeedback& feedback,
+    const Eigen::MatrixXd& new_positions,
+    const Eigen::MatrixXd& new_velocities,
     const Eigen::MatrixXd& new_accelerations);
 
   // Updates the Arm State by planning a trajectory to a given set of joint
