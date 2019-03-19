@@ -5,6 +5,7 @@
 #include <actionlib/server/simple_action_server.h>
 
 #include <geometry_msgs/Point.h>
+#include <trajectory_msgs/JointTrajectory.h>
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
 #include <hebi_cpp_api_examples/ArmMotionAction.h>
@@ -20,6 +21,39 @@ namespace ros {
 class ArmNode {
 public:
   ArmNode(arm::Arm& arm) : arm_(arm) { }
+
+  // Callback for trajectories with joint angle waypoints
+  void updateJointWaypoints(trajectory_msgs::JointTrajectory joint_trajectory) {
+    auto num_joints = arm_.getGroup()->size();
+    auto num_waypoints = joint_trajectory.points.size();
+    Eigen::MatrixXd pos(num_joints, num_waypoints);
+    Eigen::MatrixXd vel(num_joints, num_waypoints);
+    Eigen::MatrixXd accel(num_joints, num_waypoints);
+    Eigen::VectorXd times(num_waypoints);
+    for (size_t waypoint = 0; waypoint < num_waypoints; ++waypoint) {
+      auto& cmd_waypoint = joint_trajectory.points[waypoint];
+
+      if (cmd_waypoint.positions.size() != num_joints ||
+          cmd_waypoint.velocities.size() != num_joints ||
+          cmd_waypoint.accelerations.size() != num_joints) {
+        ROS_ERROR_STREAM("Position, velocity, and acceleration sizes not correct for waypoint index " << waypoint);
+        return;
+      }
+
+      if (cmd_waypoint.effort.size() != 0) {
+        ROS_WARN_STREAM("Effort commands in trajectories not supported; ignoring");
+      }
+
+      for (size_t joint = 0; joint < num_joints; ++joint) {
+        pos(joint, waypoint) = joint_trajectory.points[waypoint].positions[joint];
+        vel(joint, waypoint) = joint_trajectory.points[waypoint].velocities[joint];
+        accel(joint, waypoint) = joint_trajectory.points[waypoint].accelerations[joint];
+      }
+
+      times(waypoint) = cmd_waypoint.time_from_start.toSec();
+    }
+    updateJointWaypoints(pos, vel, accel, times);
+  }
 
   void updateCartesianWaypoints(hebi_cpp_api_examples::TargetWaypoints target_waypoints) {
     action_server_->setAborted();
@@ -192,6 +226,31 @@ private:
            !std::isnan(target_xyz_.y()) ||
            !std::isnan(target_xyz_.z());
   }
+
+  // Each row is a separate joint; each column is a separate waypoint.
+  void updateJointWaypoints(const Eigen::MatrixXd& angles, const Eigen::MatrixXd& velocities, const Eigen::MatrixXd& accelerations, const Eigen::VectorXd& times) {
+    // Data sanity check:
+    if (angles.rows() != velocities.rows()       || // Number of joints
+        angles.rows() != accelerations.rows()    ||
+        angles.rows() != arm_.getGroup()->size() ||
+        angles.cols() != velocities.cols()       || // Number of waypoints
+        angles.cols() != accelerations.cols()    ||
+        angles.cols() != times.size()            ||
+        angles.cols() == 0) {
+      ROS_ERROR("Angles, velocities, accelerations, or times were not the correct size");
+      return;
+    }
+
+    // Update stored target position, based on final joint angles.
+    target_xyz_ = arm_.getKinematics().FK(angles.rightCols<1>());
+
+    // Replan:
+    arm_.getTrajectory().replan(
+      ::ros::Time::now().toSec(),
+      arm_.getLastFeedback(),
+      angles, velocities, accelerations, times);
+  }
+
   // Helper function to condense functionality between various message/action callbacks above
   // Replan a smooth joint trajectory from the current location through a
   // series of cartesian waypoints.
@@ -378,8 +437,12 @@ int main(int argc, char ** argv) {
     node.subscribe<geometry_msgs::Point>("set_target", 50, &hebi::ros::ArmNode::setTargetCallback, &arm_node);
 
   // Subscribe to lists of (x, y, z) waypoints
-  ros::Subscriber waypoint_subscriber =
+  ros::Subscriber cartesian_waypoint_subscriber =
     node.subscribe<hebi_cpp_api_examples::TargetWaypoints>("cartesian_waypoints", 50, &hebi::ros::ArmNode::updateCartesianWaypoints, &arm_node);
+
+  // Subscribe to lists of joint angle waypoints
+  ros::Subscriber joint_waypoint_subscriber =
+    node.subscribe<trajectory_msgs::JointTrajectory>("joint_waypoints", 50, &hebi::ros::ArmNode::updateJointWaypoints, &arm_node);
 
   /////////////////// Main Loop ///////////////////
 

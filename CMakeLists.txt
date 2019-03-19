@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
   std_msgs
   geometry_msgs
+  trajectory_msgs
   actionlib
   hebi_cpp_api
 )
@@ -35,6 +36,7 @@ add_message_files(
 generate_messages(
   DEPENDENCIES
   geometry_msgs
+  trajectory_msgs
   std_msgs
   actionlib_msgs
 )
@@ -47,6 +49,7 @@ catkin_package(
   CATKIN_DEPENDS actionlib
   CATKIN_DEPENDS std_msgs
   CATKIN_DEPENDS geometry_msgs
+  CATKIN_DEPENDS trajectory_msgs
   CATKIN_DEPENDS message_runtime
   CATKIN_DEPENDS hebi_cpp_api
 )
