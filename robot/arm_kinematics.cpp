@@ -91,10 +91,51 @@ Eigen::VectorXd ArmKinematics::solveIK(
   return ik_result_joint_angles;
 }
 
+// Return the joint angles to move to a given xyz location
+Eigen::VectorXd ArmKinematics::solveIKWithOrientation(
+  const Eigen::VectorXd& initial_positions,
+  const Eigen::Vector3d& target_xyz, 
+  const Eigen::Matrix3d& orientation) const {
+  // NOTE: may want to customize the IK here!
+
+  // TODO: smartly handle exceptions?
+  Eigen::VectorXd ik_result_joint_angles(initial_positions.size());
+  if (use_joint_limits_) {
+    model_.solveIK(
+      initial_positions,
+      ik_result_joint_angles,
+      robot_model::EndEffectorPositionObjective(target_xyz),
+      robot_model::EndEffectorSO3Objective(orientation),
+      robot_model::JointLimitConstraint(min_positions_, max_positions_)
+    );
+  } else {
+    model_.solveIK(
+      initial_positions,
+      ik_result_joint_angles,
+      robot_model::EndEffectorPositionObjective(target_xyz),
+      robot_model::EndEffectorSO3Objective(orientation)
+    );
+  }
+  return ik_result_joint_angles;
+}
 Eigen::Vector3d ArmKinematics::FK(const Eigen::VectorXd& positions) const {
   Eigen::Matrix4d transform;
   model_.getEndEffector(positions, transform);
   return Eigen::Vector3d(transform(0,3), transform(1,3), transform(2,3));
+}
+  
+void ArmKinematics::FKWithTip(const Eigen::VectorXd& positions, Eigen::Vector3d& xyz_out, Eigen::Vector3d& tip_axis) const {
+  Eigen::Matrix4d transform;
+  model_.getEndEffector(positions, transform);
+  xyz_out = Eigen::Vector3d(transform(0,3), transform(1,3), transform(2,3));
+  tip_axis = Eigen::Vector3d(transform(0,2), transform(1,2), transform(2,2));
+}
+  
+void ArmKinematics::FKWithOrientation(const Eigen::VectorXd& positions, Eigen::Vector3d& xyz_out, Eigen::Matrix3d& orientation) const {
+  Eigen::Matrix4d transform;
+  model_.getEndEffector(positions, transform);
+  xyz_out = Eigen::Vector3d(transform(0,3), transform(1,3), transform(2,3));
+  orientation = transform.block<3,3>(0,0);
 }
 
 Eigen::VectorXd ArmKinematics::gravCompEfforts(const hebi::GroupFeedback& feedback) const {

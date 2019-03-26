@@ -22,7 +22,16 @@ public:
     const Eigen::Vector3d& target_xyz,
     const Eigen::Vector3d& end_tip) const;
 
+  // Return the joint angles to move to a given xyz location while
+  // pointing a certain direction
+  Eigen::VectorXd solveIKWithOrientation(
+    const Eigen::VectorXd& initial_positions,
+    const Eigen::Vector3d& target_xyz,
+    const Eigen::Matrix3d& orientation) const;
+
   Eigen::Vector3d FK(const Eigen::VectorXd& positions) const;
+  void FKWithTip(const Eigen::VectorXd& positions, Eigen::Vector3d& xyz_out, Eigen::Vector3d& tip_axis) const;
+  void FKWithOrientation(const Eigen::VectorXd& positions, Eigen::Vector3d& xyz_out, Eigen::Matrix3d& orientation) const;
 
   Eigen::VectorXd gravCompEfforts(const hebi::GroupFeedback& feedback) const;
 
