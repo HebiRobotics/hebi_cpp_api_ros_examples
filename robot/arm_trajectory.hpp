@@ -27,7 +27,8 @@ public:
     const Eigen::MatrixXd& new_positions,
     const Eigen::MatrixXd& new_velocities,
     const Eigen::MatrixXd& new_accelerations,
-    const Eigen::VectorXd& times);
+    const Eigen::VectorXd& times,
+    bool ignore_current_trajectory = false);
 
   // Updates the Arm State by planning a trajectory to a given set of joint
   // waypoints.  Uses the current trajectory/state if defined.
@@ -37,7 +38,8 @@ public:
     const GroupFeedback& feedback,
     const Eigen::MatrixXd& new_positions,
     const Eigen::MatrixXd& new_velocities,
-    const Eigen::MatrixXd& new_accelerations);
+    const Eigen::MatrixXd& new_accelerations,
+    bool ignore_current_trajectory = false);
 
   // Updates the Arm State by planning a trajectory to a given set of joint
   // waypoints.  Uses the current trajectory/state if defined.
@@ -48,7 +50,8 @@ public:
   void replan(
     double t_now,
     const GroupFeedback& feedback,
-    const Eigen::MatrixXd& new_positions);
+    const Eigen::MatrixXd& new_positions,
+    bool ignore_current_trajectory = false);
 
   // Single-waypoint version of replan
   // NOTE: this call assumes feedback is populated.
@@ -57,7 +60,8 @@ public:
   void replan(
     double t_now,
     const GroupFeedback& feedback,
-    const Eigen::VectorXd& new_positions);
+    const Eigen::VectorXd& new_positions,
+    bool ignore_current_trajectory = false);
 
   // Heuristic to get the timing of the waypoints. This function can be
   // modified to add custom waypoint timing.
@@ -70,6 +74,14 @@ public:
   double getTrajStartTime() { return trajectory_start_time_; }
   double getTrajEndTime() { return trajectory_start_time_ + trajectory_->getDuration(); }
 
+  // Pause the active command/trajectory to go into a "grav comp" mode
+  // where the robot can be moved around.
+  void pauseActiveCommand();
+
+  // Resume control to a specific point
+  // NOTE: This resets the trajectory to command to the given point
+  void resumeActiveCommand(double t_now, const GroupFeedback& feedback);
+
 private:
   // This is private, because we want to ensure the ArmTrajectory is always
   // initialized correctly after creation; use the "create" factory method
@@ -79,6 +91,8 @@ private:
   // These should _always_ be valid
   std::shared_ptr<hebi::trajectory::Trajectory> trajectory_ {};
   double trajectory_start_time_ {};
+
+  bool override_active_command_{};
 };
 
 } // namespace arm

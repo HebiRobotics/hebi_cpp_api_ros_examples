@@ -6,9 +6,11 @@
 
 #include <geometry_msgs/Point.h>
 #include <trajectory_msgs/JointTrajectory.h>
+#include <std_msgs/Bool.h>
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
 #include <hebi_cpp_api_examples/ArmMotionAction.h>
+
 
 #include "hebi_cpp_api/group_command.hpp"
 
@@ -112,6 +114,20 @@ public:
 
     // Replan
     updateCartesianWaypoints(xyz_waypoints);
+  }
+
+  void setCompliantMode(std_msgs::Bool msg) {
+    if (msg.data) {
+      // Go into a passive mode so the system can be moved by hand
+      ROS_INFO("Pausing active command (entering grav comp mode)");
+      arm_.getTrajectory().pauseActiveCommand();
+    } else {
+      ROS_INFO("Resuming active command"); 
+      auto t = ::ros::Time::now().toSec();
+      const auto& last_fbk = arm_.getLastFeedback();
+      arm_.getTrajectory().resumeActiveCommand(t, last_fbk);
+      target_xyz_ = arm_.getKinematics().FK(last_fbk.getPosition());
+    }
   }
 
   void startArmMotion(const hebi_cpp_api_examples::ArmMotionGoalConstPtr& goal) {
@@ -443,6 +459,11 @@ int main(int argc, char ** argv) {
   // Subscribe to lists of joint angle waypoints
   ros::Subscriber joint_waypoint_subscriber =
     node.subscribe<trajectory_msgs::JointTrajectory>("joint_waypoints", 50, &hebi::ros::ArmNode::updateJointWaypoints, &arm_node);
+
+  // Subscribe to "compliant mode" toggle, so the robot is placed in/out of
+  // a "grav comp only" mode.
+  ros::Subscriber compliant_mode_subscriber =
+    node.subscribe<std_msgs::Bool>("compliant_mode", 50, &hebi::ros::ArmNode::setCompliantMode, &arm_node);
 
   /////////////////// Main Loop ///////////////////
 

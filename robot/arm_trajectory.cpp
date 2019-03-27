@@ -21,11 +21,24 @@ void ArmTrajectory::getState(
   Eigen::VectorXd& velocities,
   Eigen::VectorXd& accelerations) {
 
-  // (Cap the effective time to the end of the trajectory)
-  double t = std::min(t_now - trajectory_start_time_,
-                      trajectory_->getDuration());
+  if (override_active_command_) {
+    auto num_modules = trajectory_->getJointCount();
+    positions.resize(num_modules);
+    velocities.resize(num_modules);
+    accelerations.resize(num_modules);
+    for (size_t i = 0; i < num_modules; ++i) {
+			positions(i) = std::numeric_limits<double>::quiet_NaN();
+      // Note: maybe want "0" velocity instead?
+			velocities(i) = std::numeric_limits<float>::quiet_NaN();
+			accelerations(i) = 0;
+    }
+  } else {
+    // (Cap the effective time to the end of the trajectory)
+    double t = std::min(t_now - trajectory_start_time_,
+                        trajectory_->getDuration());
 
-  trajectory_->getState(t, &positions, &velocities, &accelerations);
+    trajectory_->getState(t, &positions, &velocities, &accelerations);
+  }
 }
 
 // Updates the Arm State by planning a trajectory to a given set of joint
@@ -37,7 +50,8 @@ void ArmTrajectory::replan(
   const Eigen::MatrixXd& new_positions,
   const Eigen::MatrixXd& new_velocities,
   const Eigen::MatrixXd& new_accelerations,
-  const Eigen::VectorXd& times) {
+  const Eigen::VectorXd& times,
+  bool ignore_current_trajectory) {
 
   int num_joints = new_positions.rows();
 
@@ -46,7 +60,7 @@ void ArmTrajectory::replan(
   Eigen::VectorXd curr_pos = Eigen::VectorXd::Zero(num_joints);
   Eigen::VectorXd curr_vel = Eigen::VectorXd::Zero(num_joints);
   Eigen::VectorXd curr_accel = Eigen::VectorXd::Zero(num_joints);
-  if (trajectory_) {
+  if (trajectory_ && !ignore_current_trajectory) {
     // Clip time to end of trajectory
     double t = std::min(t_now - trajectory_start_time_,
                         trajectory_->getDuration());
@@ -97,11 +111,12 @@ void ArmTrajectory::replan(
   const GroupFeedback& feedback,
   const Eigen::MatrixXd& new_positions,
   const Eigen::MatrixXd& new_velocities,
-  const Eigen::MatrixXd& new_accelerations) {
+  const Eigen::MatrixXd& new_accelerations,
+  bool ignore_current_trajectory) {
 
   // Call parent function with empty times matrix to trigger auto-time-determination
   VectorXd empty_times(0);
-  replan(t_now, feedback, new_positions, new_velocities, new_accelerations, empty_times);
+  replan(t_now, feedback, new_positions, new_velocities, new_accelerations, empty_times, ignore_current_trajectory);
 }
 
 // Updates the Arm State by planning a trajectory to a given set of joint
@@ -112,7 +127,8 @@ void ArmTrajectory::replan(
 void ArmTrajectory::replan(
   double t_now,
   const GroupFeedback& feedback,
-  const Eigen::MatrixXd& new_positions) {
+  const Eigen::MatrixXd& new_positions,
+  bool ignore_current_trajectory) {
 
   int num_joints = new_positions.rows();
   int num_waypoints = new_positions.cols();
@@ -129,13 +145,14 @@ void ArmTrajectory::replan(
   accelerations.setConstant(nan);
   accelerations.rightCols<1>() = Eigen::VectorXd::Zero(num_joints);
 
-  replan(t_now, feedback, new_positions, velocities, accelerations);
+  replan(t_now, feedback, new_positions, velocities, accelerations, ignore_current_trajectory);
 }
 
 void ArmTrajectory::replan(
   double t_now,
   const GroupFeedback& feedback,
-  const Eigen::VectorXd& new_positions) {
+  const Eigen::VectorXd& new_positions,
+  bool ignore_current_trajectory) {
 
   int num_joints = new_positions.size();
   int num_waypoints = 1;
@@ -144,7 +161,7 @@ void ArmTrajectory::replan(
   new_positions_matrix = Eigen::MatrixXd::Zero(num_joints, 1);
   new_positions_matrix.col(0) = new_positions;
 
-  replan(t_now, feedback, new_positions_matrix);
+  replan(t_now, feedback, new_positions_matrix, ignore_current_trajectory);
 }
 
 // Heuristic to get the timing of the waypoints. This function can be
@@ -164,6 +181,15 @@ Eigen::VectorXd ArmTrajectory::getWaypointTimes(
     times[i] = rampTime * (double)i;
 
   return times;
+}
+    
+void ArmTrajectory::pauseActiveCommand() {
+  override_active_command_ = true; 
+}
+
+void ArmTrajectory::resumeActiveCommand(double t_now, const GroupFeedback& feedback) {
+  replan(t_now, feedback, feedback.getPosition(), true);
+  override_active_command_ = false; 
 }
 
 } // namespace arm_node
