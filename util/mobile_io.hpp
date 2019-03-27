@@ -24,7 +24,7 @@ struct MobileIODiff {
     ToOff, ToOn // Edge triggers; these occur if last + current state are different
   };
 
-	// Note: one-indexed to match buttons on the screen
+  // Note: one-indexed to match buttons on the screen
   ButtonState get(int button);
 
 private:
@@ -43,7 +43,7 @@ private:
   MobileIO(std::shared_ptr<hebi::Group>);
 
   std::shared_ptr<hebi::Group> group_;
-	hebi::GroupFeedback fbk_;
+  hebi::GroupFeedback fbk_;
   MobileIOState current_state_;
 };
 
