@@ -8,8 +8,8 @@ namespace hebi {
 Path::Path(const std::string& name, const std::vector<double>& points, size_t num_joints) 
   : name_(name) {
   auto num_pts = points.size() / num_joints;
+  Eigen::VectorXd new_pt(num_joints);
   for (size_t pt = 0; pt < num_pts; ++pt) {
-    Eigen::VectorXd new_pt(num_joints);
     for (size_t j = 0; j < num_joints; ++j) {
       new_pt(j) = points[num_joints * pt + j];
     }
