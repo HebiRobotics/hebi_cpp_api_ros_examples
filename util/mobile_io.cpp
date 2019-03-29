@@ -1,5 +1,7 @@
 #include "mobile_io.hpp"
 
+#include "ros/ros.h" // For ROS_WARN
+
 #include "hebi_cpp_api/lookup.hpp"
 
 namespace hebi {
