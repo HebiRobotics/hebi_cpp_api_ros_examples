@@ -16,9 +16,9 @@ namespace ros {
 template <typename NamedItem>
 static int getNameIndex(const hebi_cpp_api_examples::Playback& msg, const std::vector<NamedItem>& named_items, const std::string& name_type) {
   int index = msg.index;
-  auto name = msg.name;
+  const auto& name = msg.name;
   if (msg.name.size() > 0) {
-    auto it = std::find_if(named_items.begin(), named_items.end(), [name](const NamedItem& item) { return item.name() == name; } );
+    auto it = std::find_if(named_items.begin(), named_items.end(), [&name](const NamedItem& item) { return item.name() == name; } );
     if (it != named_items.end()) {
       index = it - named_items.begin();
     } else {
@@ -257,21 +257,21 @@ int main(int argc, char ** argv) {
   std::vector<std::string> families, names;
   loadOptionalParam(node, families, { "HEBI" }, "families");
   if (!loadRequiredParam(node, names, "names"))
-    return -1;
+    return 1;
 
   // Read the package + path for the gains file
   std::string gains_package, gains_file;
   if (!loadRequiredParam(node, gains_package, "gains_package"))
-    return -1;
+    return 1;
   if (!loadRequiredParam(node, gains_file, "gains_file"))
-    return -1;
+    return 1;
 
   // Read the package + path for the hrdf file
   std::string hrdf_package, hrdf_file;
   if (!loadRequiredParam(node, hrdf_package, "hrdf_package"))
-    return -1;
+    return 1;
   if (!loadRequiredParam(node, hrdf_file, "hrdf_file"))
-    return -1;
+    return 1;
 
   // Get the "home" position for the arm
   std::vector<double> home_position_vector;
@@ -291,7 +291,7 @@ int main(int argc, char ** argv) {
     }
   } else if (home_position_vector.size() != model->getDoFCount()) {
     ROS_ERROR("'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
-    return -1;
+    return 1;
   } else {
     for (size_t i = 0; i < home_position.size(); ++i) {
       home_position[i] = home_position_vector[i];
@@ -308,7 +308,7 @@ int main(int argc, char ** argv) {
 
   if (!arm) {
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
-    return -1;
+    return 1;
   }
 
   // Load the appropriate gains file
@@ -336,7 +336,7 @@ int main(int argc, char ** argv) {
   // Load in the named paths and waypoints:
   std::vector<std::string> enabled_paths, enabled_waypoints;
   if (!loadRequiredParam(node, enabled_paths, "enabled_paths") || !loadRequiredParam(node, enabled_waypoints, "enabled_waypoints"))
-    return -1;
+    return 1;
 
   size_t num_joints = arm->size();
   ROS_WARN("##############");
