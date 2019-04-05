@@ -53,6 +53,20 @@ public:
     const Eigen::MatrixXd& new_positions,
     bool ignore_current_trajectory = false);
 
+  // Updates the Arm State by planning a trajectory to a given set of joint
+  // waypoints.  Uses the current trajectory/state if defined.
+  // NOTE: this call assumes feedback is populated.
+  // NOTE: this is a wrapper around the more general replan that
+  // assumes zero end velocity and acceleration, and unconstrained
+  // intermediate velocity and acceleration; however, this allows times to
+  // be specified.
+  void replan(
+    double t_now,
+    const GroupFeedback& feedback,
+    const Eigen::MatrixXd& new_positions,
+    const Eigen::VectorXd& times,
+    bool ignore_current_trajectory = false);
+
   // Single-waypoint version of replan
   // NOTE: this call assumes feedback is populated.
   // NOTE: this is a wrapper around the more general replan that assumes a

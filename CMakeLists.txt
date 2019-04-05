@@ -31,6 +31,11 @@ add_action_files(
 add_message_files(
   FILES
   TargetWaypoints.msg
+  SaveWaypoint.msg
+  StartPath.msg
+  EndPath.msg
+  Playback.msg
+  OffsetPlayback.msg
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -89,6 +94,10 @@ target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 add_executable(diff_drive_node nodes/diff_drive_node.cpp robot/diff_drive.cpp)
 add_dependencies(diff_drive_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
+
+add_executable(teach_repeat_node nodes/teach_repeat_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp util/path.cpp util/waypoint.cpp)
+add_dependencies(teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(teach_repeat_node ${catkin_LIBRARIES} )
 
 add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
 add_dependencies(arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})

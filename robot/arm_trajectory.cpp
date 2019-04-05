@@ -139,13 +139,38 @@ void ArmTrajectory::replan(
 
   Eigen::MatrixXd velocities(num_joints, num_waypoints);
   velocities.setConstant(nan);
-  velocities.rightCols<1>() = Eigen::VectorXd::Zero(num_joints);
+  velocities.rightCols<1>().setZero();
 
   Eigen::MatrixXd accelerations(num_joints, num_waypoints);
   accelerations.setConstant(nan);
-  accelerations.rightCols<1>() = Eigen::VectorXd::Zero(num_joints);
+  accelerations.rightCols<1>().setZero();
 
   replan(t_now, feedback, new_positions, velocities, accelerations, ignore_current_trajectory);
+}
+  
+void ArmTrajectory::replan(
+  double t_now,
+  const GroupFeedback& feedback,
+  const Eigen::MatrixXd& new_positions,
+  const Eigen::VectorXd& times,
+  bool ignore_current_trajectory) {
+
+  int num_joints = new_positions.rows();
+  int num_waypoints = new_positions.cols();
+
+  // Unconstrained velocities and accelerations during the path, but set to
+  // zero at the end.
+  double nan = std::numeric_limits<double>::quiet_NaN();
+
+  Eigen::MatrixXd velocities(num_joints, num_waypoints);
+  velocities.setConstant(nan);
+  velocities.rightCols<1>().setZero();
+
+  Eigen::MatrixXd accelerations(num_joints, num_waypoints);
+  accelerations.setConstant(nan);
+  accelerations.rightCols<1>().setZero();
+
+  replan(t_now, feedback, new_positions, velocities, accelerations, times, ignore_current_trajectory);
 }
 
 void ArmTrajectory::replan(
@@ -158,7 +183,6 @@ void ArmTrajectory::replan(
   int num_waypoints = 1;
 
   Eigen::MatrixXd new_positions_matrix(num_joints, 1);
-  new_positions_matrix = Eigen::MatrixXd::Zero(num_joints, 1);
   new_positions_matrix.col(0) = new_positions;
 
   replan(t_now, feedback, new_positions_matrix, ignore_current_trajectory);
