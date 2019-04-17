@@ -197,6 +197,11 @@ bool OmniBase::update(double time) {
   if (!group_->getNextFeedback(feedback_))
     return false;
 
+  // Update odometry
+  if (dt > 0) {
+    updateOdometry(feedback_.getVelocity(), dt);
+  }
+
   // Update command from trajectory
   base_trajectory_.getState(time, pos_, vel_, accel_);
 
@@ -260,7 +265,11 @@ OmniBase::OmniBase(std::shared_ptr<Group> group,
 // _from theta == 0_ to obtain this rotation.
 // Note: we only do this for velocities in order to combine rotations and translations without doing gnarly
 // integrations.
-double OmniBase::convertSE2ToWheel() {
+void OmniBase::convertSE2ToWheel() {
+
+  // Note -- this converts SE2 positions along a trajectory starting from the initial position of
+  // the robot during this move, not the current local position.  This is designed to be paired
+  // ith the "base_trajectory_" interpolation code!
 
   double theta = pos_[2];
   double dtheta = vel_[2];
@@ -270,23 +279,59 @@ double OmniBase::convertSE2ToWheel() {
   double stheta = std::sin(-theta);
   double dx = vel_[0] * ctheta - vel_[1] * stheta;
   double dy = vel_[0] * stheta + vel_[1] * ctheta;
-  dx /= wheel_radius_;
-  dy /= wheel_radius_;
-  double ratio = sqrt(3)/2;
 
-  //////////////
-  // Velocity:
-  //////////////
+  Eigen::Vector3d local_vel;
+  local_vel << dx, dy, dtheta;
 
-  // Rotation
-  wheel_vel_[0] =
-  wheel_vel_[1] =
-  wheel_vel_[2] = -dtheta * base_radius_ / wheel_radius_;
-  // Translation
-  wheel_vel_[0] += - 0.5 * dy - ratio * dx;
-  wheel_vel_[1] += - 0.5 * dy + ratio * dx;
-  wheel_vel_[2] += dy;
+  wheel_vel_ = jacobian_ * local_vel;
 }
+
+// Updates local velocity based on wheel change in position since last time
+void OmniBase::updateOdometry(const Eigen::Vector3d& delta_wheel_pos, double dt) { 
+  // Get local velocities
+  local_vel_ = jacobian_inv_ * delta_wheel_pos;
+
+  // Get global velocity:
+  auto c = std::cos(global_pose_[2]);
+  auto s = std::sin(global_pose_[2]);
+  global_vel_[0] = c * local_vel_[0] - s * local_vel_[1];
+  global_vel_[1] = s * local_vel_[0] + c * local_vel_[1];
+  // Theta transforms directly
+  global_vel_[2] = local_vel_[2];
+
+  global_pose_ += global_vel_ * dt;
+}
+
+// Helper functions for initialization of jacobians as class members, b/c
+// Eigen::Matrix3d objects don't have a constructor which can be used to set
+// values.
+
+Eigen::Matrix3d OmniBase::createJacobian() {
+  double a = sqrt(3)/(2 * wheel_radius_);
+  double b = 1.0 / wheel_radius_;
+  double c = -base_radius_ / wheel_radius_;
+  Eigen::Matrix3d j;
+  j << -a, -b / 2.0, c,
+       a, -b / 2.0, c,
+       0.0, b, c;
+  return j;
+}
+
+Eigen::Matrix3d OmniBase::createJacobianInv() {
+  Eigen::Matrix3d j_inv;
+  double a = wheel_radius_ / sqrt(3);
+  double b = wheel_radius_ / 3.0;
+  double c = -b / base_radius_;
+  j_inv << -a, a, 0,
+           -b, -b, 2.0 * b,
+           c, c, c;
+  return j_inv;
+}
+
+const Eigen::Matrix3d OmniBase::jacobian_ = createJacobian();
+
+// Wheel velocities to local (x,y,theta)
+const Eigen::Matrix3d OmniBase::jacobian_inv_ = createJacobianInv();
 
 }
 
