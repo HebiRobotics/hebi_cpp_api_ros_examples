@@ -88,6 +88,11 @@ public:
   GroupFeedback& getLastFeedback() { return feedback_; }
   OmniBaseTrajectory& getTrajectory() { return base_trajectory_; }
 
+  // Odometry/system state
+  const Eigen::Vector3d& getGlobalPose() { return global_pose_; }
+  const Eigen::Vector3d& getGlobalVelocity() { return global_vel_; }
+  const Eigen::Vector3d& getLocalVelocity() { return local_vel_; }
+
   // Reset before commanding a new trajectory.
   void resetStart(Color& color);
 
@@ -98,11 +103,12 @@ private:
     OmniBaseTrajectory base_trajectory,
     double start_time);
 
-  double convertSE2ToWheel();
+  void convertSE2ToWheel();
+  void updateOdometry(const Eigen::Vector3d& wheel_vel, double dt);
 
   /* Declare main kinematic variables */
   static constexpr double wheel_radius_ = 0.0762; // m
-  static constexpr double base_radius_ = 0.235; // m (center of omni to origin of base)
+  static constexpr double base_radius_ = 0.220; // m (center of omni to origin of base)
 
   std::shared_ptr<Group> group_;
 
@@ -121,6 +127,20 @@ private:
   OmniBaseTrajectory base_trajectory_;
 
   double last_time_{-1};
+
+  // Track odometry; these are updated every time `update` is called.
+  // x/y/theta global pose and velocity
+  Eigen::Vector3d global_pose_{0, 0, 0};
+  Eigen::Vector3d global_vel_{0, 0, 0};
+  // Also, local velocity.
+  Eigen::Vector3d local_vel_{0, 0, 0};
+
+  // Local (x,y,theta) to wheel velocities
+  static Eigen::Matrix3d createJacobian();
+  static const Eigen::Matrix3d jacobian_;
+  // Wheel velocities to local (x,y,theta)
+  static Eigen::Matrix3d createJacobianInv();
+  static const Eigen::Matrix3d jacobian_inv_;
 
   Color color_;
 };

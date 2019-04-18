@@ -13,6 +13,8 @@
 
 #include "robot/omni_base.hpp"
 
+#include "util/odom_publisher.hpp"
+
 #include <ros/console.h>
 #include <ros/package.h>
 
@@ -125,6 +127,21 @@ int main(int argc, char ** argv) {
     names = {"Wheel1", "Wheel2", "Wheel3"};
   }
 
+  // Topics for publishing calculated odometry
+  std::unique_ptr<hebi::ros::OdomPublisher> odom_publisher;
+  {
+    bool publish_odom{};
+    if (node.hasParam("publish_odom") && node.getParam("publish_odom", publish_odom)) {
+      ROS_INFO("Found and successfully read 'publish_odom' parameter");
+    } else {
+      ROS_INFO("Could not find/read 'publish_odom' parameter; defaulting to 'false' ");
+      publish_odom = false;
+    }
+    if (publish_odom) {
+      odom_publisher.reset(new hebi::ros::OdomPublisher(node));
+    }
+  }
+
   /////////////////// Initialize base ///////////////////
 
   // Create base and plan initial trajectory
@@ -161,12 +178,15 @@ int main(int argc, char ** argv) {
   // Main command loop
   while (ros::ok()) {
 
-    auto t = ros::Time::now().toSec();
+    auto t = ros::Time::now();
 
     // Update feedback, and command the base to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
-    if (!base->update(t))
+    if (!base->update(t.toSec()))
       ROS_WARN("Error Getting Feedback -- Check Connection");
+
+    if (odom_publisher)
+      odom_publisher->send(t, base->getGlobalPose(), base->getGlobalVelocity());
 
     // Call any pending callbacks (note -- this may update our planned motion)
     ros::spinOnce();

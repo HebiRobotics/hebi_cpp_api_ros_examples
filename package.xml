@@ -20,7 +20,9 @@
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>tf</depend>
   <depend>trajectory_msgs</depend>
   <depend>hebi_cpp_api</depend>
   

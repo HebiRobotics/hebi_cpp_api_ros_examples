@@ -12,7 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   actionlib_msgs
   std_msgs
+  nav_msgs
   geometry_msgs
+  tf
   trajectory_msgs
   actionlib
   hebi_cpp_api
@@ -44,6 +46,7 @@ generate_messages(
   geometry_msgs
   trajectory_msgs
   std_msgs
+  nav_msgs
   actionlib_msgs
 )
 
@@ -54,7 +57,9 @@ catkin_package(
   CATKIN_DEPENDS roscpp
   CATKIN_DEPENDS actionlib
   CATKIN_DEPENDS std_msgs
+  CATKIN_DEPENDS nav_msgs
   CATKIN_DEPENDS geometry_msgs
+  CATKIN_DEPENDS tf
   CATKIN_DEPENDS trajectory_msgs
   CATKIN_DEPENDS message_runtime
   CATKIN_DEPENDS hebi_cpp_api
@@ -87,7 +92,7 @@ install(FILES
 file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/gains/omni_base_gains.xml
       DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
-add_executable(omni_base_node nodes/omni_base_node.cpp robot/omni_base.cpp)
+add_executable(omni_base_node nodes/omni_base_node.cpp robot/omni_base.cpp util/odom_publisher.cpp)
 add_dependencies(omni_base_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 

@@ -97,6 +97,8 @@ Set the `families` and `names` parameters to lists of strings matching the modul
 
 By default, if no parameters are given, this defaults to family "HEBI" and "Wheel1", "Wheel2", "Wheel3" for the omnibase, or "Left" and "Right" for the diff drive.
 
+For the omni base, you can also set the `publish_odom` boolean parameter; if set, this will publish x/y/theta odometry on tf broadcaster and the /odom channel.
+
 ## To run:
 
 ```
