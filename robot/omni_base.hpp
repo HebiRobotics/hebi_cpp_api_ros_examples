@@ -34,6 +34,9 @@ public:
   void getState(double t_now, 
     Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
 
+  // Plan a trajectory to move with a given velocity for the next couple seconds.
+  void replanVel(double t_now, const Eigen::Vector3d& target_vel);
+
   void replan(
     double t_now,
     const Eigen::MatrixXd& new_positions,

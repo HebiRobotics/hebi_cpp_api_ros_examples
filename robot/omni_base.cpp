@@ -25,7 +25,64 @@ void OmniBaseTrajectory::getState(
 
   trajectory_->getState(t, &positions, &velocities, &accelerations);
 }
-  
+
+void OmniBaseTrajectory::replanVel(double t_now, const Eigen::Vector3d& target_vel) {
+  Eigen::MatrixXd positions(3, 4);
+  Eigen::MatrixXd velocities(3, 4);
+  Eigen::MatrixXd accelerations(3, 4);
+  // One second to get up to velocity, and then keep going for at least 1 second.
+  Eigen::VectorXd times(4);
+  times << 0, 0.5, 2, 2.5;
+
+  // Initial state
+  // Start from (0, 0, 0), as this is a relative motion.
+
+  // Copy new waypoints
+  auto nan = std::numeric_limits<double>::quiet_NaN();
+  positions.col(0).setZero();
+  positions.col(1).setConstant(nan);
+  positions.col(2).setConstant(nan);
+  positions.col(3).setConstant(nan);
+
+  // Get last command to smoothly maintain commanded velocity
+  Eigen::VectorXd p, v, a;
+  p.resize(3);
+  v.resize(3);
+  a.resize(3);
+  if (trajectory_) {
+    getState(t_now, p, v, a);
+  } else {
+    p.setZero();
+    v.setZero();
+    a.setZero();
+  }
+
+  // Transform last velocity (local from trajectory start) into local frame
+  double theta = p[2];
+  double ctheta = std::cos(-theta);
+  double stheta = std::sin(-theta);
+  double dx = v[0] * ctheta - v[1] * stheta;
+  double dy = v[0] * stheta + v[1] * ctheta;
+  double dtheta = v[2];
+
+  Eigen::Vector3d curr_vel;
+  curr_vel << dx, dy, dtheta;
+
+  velocities.col(0) = curr_vel;
+  velocities.col(1) = velocities.col(2) = target_vel;
+  velocities.col(3).setZero();
+
+  accelerations.col(0).setZero();
+  accelerations.col(1).setZero();
+  accelerations.col(2).setZero();
+  accelerations.col(3).setZero();
+
+  // Create new trajectory
+  trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
+                  times, positions, &velocities, &accelerations);
+  trajectory_start_time_ = t_now;
+}
+
 // Updates the Base State by planning a trajectory to a given set of joint
 // waypoints.  Uses the current trajectory/state if defined.
 // NOTE: this call assumes feedback is populated.
