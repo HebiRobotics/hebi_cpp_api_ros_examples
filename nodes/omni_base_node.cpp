@@ -60,6 +60,11 @@ public:
     ::ros::Rate r(10);
     bool success = true;
     while (true) {
+      if (!action_server_->isActive()) {
+        ROS_INFO("Aborted base motion");
+        success = false;
+        break;
+      }
       if (action_server_->isPreemptRequested() || !::ros::ok()) {
         ROS_INFO("Preempted base motion");
         action_server_->setPreempted();
@@ -88,7 +93,21 @@ public:
     ROS_INFO("Completed base motion action");
     hebi_cpp_api_examples::BaseMotionResult result;
     result.success = success;
-    action_server_->setSucceeded(result); // TODO: set failed?
+    action_server_->setSucceeded(result);
+  }
+
+  // Set the velocity, canceling any active action
+  void updateVelocity(geometry_msgs::Twist cmd_vel) {
+    // Cancel any active action:
+    if (action_server_->isActive())
+      action_server_->setAborted();
+
+    // Replan given the current command
+    Eigen::Vector3d target_vel;
+    target_vel << cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z;
+    base_.getTrajectory().replanVel(
+      ::ros::Time::now().toSec(),
+      target_vel);
   }
 
   void setActionServer(actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server) {
@@ -170,6 +189,10 @@ int main(int argc, char ** argv) {
   base_node.setActionServer(&base_motion_action);
 
   base_motion_action.start();
+
+  // Explicitly set the target velocity
+  ros::Subscriber set_velocity_subscriber =
+    node.subscribe<geometry_msgs::Twist>("cmd_vel", 50, &hebi::ros::BaseNode::updateVelocity, &base_node);
 
   /////////////////// Main Loop ///////////////////
 
