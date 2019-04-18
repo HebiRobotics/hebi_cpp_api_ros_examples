@@ -38,7 +38,6 @@ public:
     Eigen::MatrixXd waypoints(3, num_waypoints);
 
     ROS_INFO("Executing base motion action");
-    hebi_cpp_api_examples::BaseMotionFeedback feedback;
 
     ////////////////
     // Translation
@@ -58,19 +57,25 @@ public:
     // Wait until the action is complete, sending status/feedback along the
     // way.
     ::ros::Rate r(10);
-    bool success = true;
+
+    hebi_cpp_api_examples::BaseMotionFeedback feedback;
+
     while (true) {
-      if (!action_server_->isActive()) {
-        ROS_INFO("Aborted base motion");
-        success = false;
-        break;
-      }
       if (action_server_->isPreemptRequested() || !::ros::ok()) {
-        ROS_INFO("Preempted base motion");
+        ROS_INFO("Base motion was preempted");
+        base_.clearColor();
+        // Note -- the `startBaseMotion` function will not be called until the
+        // action server has been preempted here:
         action_server_->setPreempted();
-        success = false;
-        break;
+        return;
       }
+
+      if (!action_server_->isActive() || !::ros::ok()) {
+        ROS_INFO("Base motion was cancelled");
+        base_.clearColor();
+        return;
+      }
+
       auto t = ::ros::Time::now().toSec();
 
       // Publish progress:
@@ -79,7 +84,6 @@ public:
       action_server_->publishFeedback(feedback);
  
       if (base_.isTrajectoryComplete(t)) {
-        ROS_INFO("TRANSLATION COMPLETE");
         break;
       }
 
@@ -91,9 +95,7 @@ public:
 
     // publish when the base is done with a motion
     ROS_INFO("Completed base motion action");
-    hebi_cpp_api_examples::BaseMotionResult result;
-    result.success = success;
-    action_server_->setSucceeded(result);
+    action_server_->setSucceeded();
   }
 
   // Set the velocity, canceling any active action
