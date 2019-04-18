@@ -104,7 +104,7 @@ private:
     double start_time);
 
   void convertSE2ToWheel();
-  void updateOdometry(const Eigen::Vector3d& delta_wheel_pos, double dt);
+  void updateOdometry(const Eigen::Vector3d& wheel_vel, double dt);
 
   /* Declare main kinematic variables */
   static constexpr double wheel_radius_ = 0.0762; // m

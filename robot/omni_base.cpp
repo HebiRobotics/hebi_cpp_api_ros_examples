@@ -287,9 +287,9 @@ void OmniBase::convertSE2ToWheel() {
 }
 
 // Updates local velocity based on wheel change in position since last time
-void OmniBase::updateOdometry(const Eigen::Vector3d& delta_wheel_pos, double dt) { 
+void OmniBase::updateOdometry(const Eigen::Vector3d& wheel_vel, double dt) { 
   // Get local velocities
-  local_vel_ = jacobian_inv_ * delta_wheel_pos;
+  local_vel_ = jacobian_inv_ * wheel_vel;
 
   // Get global velocity:
   auto c = std::cos(global_pose_[2]);
