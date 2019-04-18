@@ -194,7 +194,7 @@ int main(int argc, char ** argv) {
 
   // Explicitly set the target velocity
   ros::Subscriber set_velocity_subscriber =
-    node.subscribe<geometry_msgs::Twist>("cmd_vel", 50, &hebi::ros::BaseNode::updateVelocity, &base_node);
+    node.subscribe<geometry_msgs::Twist>("cmd_vel", 1, &hebi::ros::BaseNode::updateVelocity, &base_node);
 
   /////////////////// Main Loop ///////////////////
 

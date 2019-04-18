@@ -32,7 +32,7 @@ void OmniBaseTrajectory::replanVel(double t_now, const Eigen::Vector3d& target_v
   Eigen::MatrixXd accelerations(3, 4);
   // One second to get up to velocity, and then keep going for at least 1 second.
   Eigen::VectorXd times(4);
-  times << 0, 0.5, 2, 2.5;
+  times << 0, 0.25, 1, 1.25;
 
   // Initial state
   // Start from (0, 0, 0), as this is a relative motion.
