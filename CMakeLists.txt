@@ -96,6 +96,10 @@ add_executable(omni_base_node nodes/omni_base_node.cpp robot/omni_base.cpp util/
 add_dependencies(omni_base_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 
+add_executable(omni_base_controller_node nodes/omni_base_controller_node.cpp util/mobile_io.cpp)
+add_dependencies(omni_base_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(omni_base_controller_node ${catkin_LIBRARIES} )
+
 add_executable(diff_drive_node nodes/diff_drive_node.cpp robot/diff_drive.cpp)
 add_dependencies(diff_drive_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
