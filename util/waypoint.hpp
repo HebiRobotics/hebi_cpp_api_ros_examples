@@ -23,6 +23,7 @@ public:
   const std::string& name() const { return name_; }
   // Get the joint angles for this waypoint
   const Eigen::VectorXd& angles() const { return angles_; }
+  void setAngles(const Eigen::VectorXd& angles) { angles_ = angles; }
 
 private:
   std::string name_;
