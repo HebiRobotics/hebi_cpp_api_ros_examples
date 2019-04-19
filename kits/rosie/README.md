@@ -1,8 +1,6 @@
-# User Overview
+# User Overview: Rosie Teach/Repeat
 
-These examples demonstrate control of a Rosie HEBI Kit (a 6-DoF arm + gripper on top of an omnidirectional base).
-
-# Teach-repeat (`rosie_teach_repeat.launch`)
+This example demonstrate control of a Rosie HEBI Kit (a 6-DoF arm + gripper on top of an omnidirectional base).
 
 ## To run:
 
@@ -27,7 +25,7 @@ The controls are are follows:
 * `B7`: toggle the active mode between "playback" (default; border is green) and "teaching" (border is blue).  In "teaching" mode, the arm is compliant and roughly weightless, so can easily be moved around.
 * `B8`: quit
 
-# Developer Overview
+# Developer Overview: Rosie Teach/Repeat
 
 ## Topics (inherited from the omni base and teach repeat nodes)
 
