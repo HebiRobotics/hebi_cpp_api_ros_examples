@@ -25,11 +25,13 @@ source devel/setup.sh
 
 ## Overview/structure
 
-There are two folder with different types of examples.  In the "basic" folder, we provide examples that will expose particular features of the API, starting with single modules.
+There are three folders with different types of examples.  In the "basic" folder, we provide examples that will expose particular features of the API, starting with single modules.
 
-In the "nodes" folder, we provide full-system level demonstrations which provide a ROS node interface to a robotic system.  For example, these include an omnibase node that accepts ROS action commands for moving a HEBI omnidirectional base kit, as well as an arm node which accepts cartesian position ROS action commands.
+In the "nodes" folder, we provide full-system level demonstrations which provide a ROS node interface to a robotic subsystem.  For example, these include an omnibase node that accepts ROS action commands for moving a HEBI omnidirectional base, as well as an arm node which accepts cartesian position ROS action commands.
 
 These nodes are meant to be a starting point for your own particular functionality, or can be used as is.
+
+Finally, there is a "kits" folder, which is full-system level demonstrations for a ROS node interface to a full HEBI kit, such as the Rosie arm + omnibase kit.
 
 The remaining folders provide the action definitions, launch files, etc. used by the examples.
 
