@@ -26,6 +26,8 @@ public:
   // Get the `i`th waypoint
   const Eigen::VectorXd& waypoint(size_t i) const { return waypoints_[i]; }
 
+  void setPath(const WaypointList& waypoints) { waypoints_ = waypoints; }
+
 private:
   std::string name_;
   WaypointList waypoints_;

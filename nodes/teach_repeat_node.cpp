@@ -35,6 +35,20 @@ static int getNameIndex(const hebi_cpp_api_examples::Playback& msg, const std::v
   return index;
 }
 
+// Helper function to get the index of a name from a waypoint list; this doesn't fall back to the index, and doesn't
+// print any error messages
+template <typename NamedItem>
+static int tryGetNameIndex(const std::string& name, const std::vector<NamedItem>& named_items) {
+  int index = -1;
+  if (name.size() > 0) {
+    auto it = std::find_if(named_items.begin(), named_items.end(), [&name](const NamedItem& item) { return item.name() == name; } );
+    if (it != named_items.end()) {
+      index = it - named_items.begin();
+    }
+  }
+  return index;
+}
+
 void TeachRepeatNode::setCompliantMode(std_msgs::Bool msg) {
   if (msg.data) {
     ROS_INFO("Pausing active command (entering grav comp mode)");
@@ -86,13 +100,24 @@ void TeachRepeatNode::saveWaypoint(hebi_cpp_api_examples::SaveWaypoint msg) {
 
   // Name point from message if name is given; default to number of waypoint
   std::string waypoint_name = std::to_string(waypoints_.size() + 1);
+  int wp_index = -1;
   if (msg.name.size() > 0)
+  {
     waypoint_name = msg.name;
+    wp_index = tryGetNameIndex(waypoint_name, waypoints_);
+  }
+  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/waypoints/" + waypoint_name + ".txt";
 
   // Add waypoint; save to file
-  waypoints_.emplace_back(waypoint_name, last_fbk_pos);
-  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/waypoints/" + waypoint_name + ".txt";
-  waypoints_.back().write(filename);
+  if (wp_index != -1)
+  {
+    // If waypoint name matches, overwrite:
+    waypoints_[wp_index].setAngles(last_fbk_pos);
+    waypoints_[wp_index].write(filename);
+  } else {
+    waypoints_.emplace_back(waypoint_name, last_fbk_pos);
+    waypoints_.back().write(filename);
+  }
 
   ROS_INFO_STREAM("Saving waypoint #" << waypoints_.size());
 }
@@ -116,14 +141,25 @@ void TeachRepeatNode::endRecordPath(hebi_cpp_api_examples::EndPath msg) {
 
   // Name path from message if name is given; default to number of path
   std::string path_name = std::to_string(paths_.size() + 1);
+  int path_index = -1;
   if (msg.name.size() > 0)
+  {
     path_name = msg.name;
+    path_index = tryGetNameIndex(path_name, paths_);
+  }
+
+  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/paths/" + path_name + ".txt";
 
   // Add path, reset pending path, Save to file
-  paths_.emplace_back(path_name, currently_constructing_path_);
+  if (path_index != -1) {
+    // If path name matches, overwrite:
+    paths_[path_index].setPath(currently_constructing_path_);
+    paths_[path_index].write(filename);
+  } else {
+    paths_.emplace_back(path_name, currently_constructing_path_);
+    paths_.back().write(filename);
+  }
   currently_constructing_path_.clear();
-  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/paths/" + path_name + ".txt";
-  paths_.back().write(filename);
 
   ROS_INFO_STREAM("Saving path " << path_name << " with " << paths_.back().size() << " waypoints to file:\n" << filename);
 }
