@@ -83,8 +83,16 @@ include_directories(
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 install(FILES
-  launch/base.launch
+  launch/arm_node_4_dof.launch
+  launch/arm_node_6_dof.launch
+  launch/diff_drive.launch
+  launch/omni_base.launch
+  launch/omni_base_control.launch
+  launch/teach_repeat_6_dof.launch
+  kits/rosie/rosie_teach_repeat.launch
+
   gains/omni_base_gains.xml
+
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
@@ -100,7 +108,7 @@ add_executable(omni_base_controller_node nodes/omni_base_controller_node.cpp uti
 add_dependencies(omni_base_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_controller_node ${catkin_LIBRARIES} )
 
-add_executable(rosie_teach_repeat_controller_node nodes/rosie_teach_repeat_controller_node.cpp util/mobile_io.cpp)
+add_executable(rosie_teach_repeat_controller_node kits/rosie/teach_repeat_controller_node.cpp util/mobile_io.cpp)
 add_dependencies(rosie_teach_repeat_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rosie_teach_repeat_controller_node ${catkin_LIBRARIES} )
 
