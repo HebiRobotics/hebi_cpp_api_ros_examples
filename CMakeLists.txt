@@ -111,3 +111,7 @@ target_link_libraries(teach_repeat_node ${catkin_LIBRARIES} )
 add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
 add_dependencies(arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
+
+add_executable(gripper_node nodes/gripper_node.cpp)
+add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gripper_node ${catkin_LIBRARIES} )
