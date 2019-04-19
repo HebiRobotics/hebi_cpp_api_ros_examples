@@ -35,9 +35,29 @@ private:
 class MobileIO {
 public:
 
+  enum class ButtonMode {
+    Momentary, Toggle
+  };  
+
   static std::unique_ptr<MobileIO> create(const std::string& family, const std::string& name);
-	
+
+  // Input/feedback
   MobileIOState getState();
+  // Input/feedback; the "got_feedback" flag indicates if feedback was received within the timeout
+  // or not.
+  MobileIOState getState(bool& got_feedback);
+
+  // Outputs
+  // Note: one-indexed to match axes/buttons on the screen
+
+  bool disableSnap(size_t axis_number);
+  bool setSnap(size_t axis_number, float snap_to);
+  bool setAxisValue(size_t axis_number, float value);
+
+  bool setButtonMode(size_t button_number, ButtonMode mode);
+  bool setButtonOutput(size_t button_number, bool on);  
+
+  bool setLedColor(uint8_t r, uint8_t g, uint8_t b);
 
 private:
   MobileIO(std::shared_ptr<hebi::Group>);
