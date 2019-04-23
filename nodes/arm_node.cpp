@@ -58,7 +58,8 @@ public:
   }
 
   void updateCartesianWaypoints(hebi_cpp_api_examples::TargetWaypoints target_waypoints) {
-    action_server_->setAborted();
+    if (action_server_->isActive())
+      action_server_->setAborted();
 
     // Fill in an Eigen::Matrix3xd with the xyz goal
     size_t num_waypoints = target_waypoints.waypoints_vector.size();
@@ -77,7 +78,8 @@ public:
   // Set the target end effector location in (x,y,z) space, replanning
   // smoothly to the new location
   void setTargetCallback(geometry_msgs::Point data) {
-    action_server_->setAborted();
+    if (action_server_->isActive())
+      action_server_->setAborted();
 
     // Fill in an Eigen::Matrix3xd with the xyz goal
     Eigen::Matrix3Xd xyz_waypoints(3, 1);
@@ -92,7 +94,8 @@ public:
   // "Jog" the target end effector location in (x,y,z) space, replanning
   // smoothly to the new location
   void offsetTargetCallback(geometry_msgs::Point data) {
-    action_server_->setAborted();
+    if (action_server_->isActive())
+      action_server_->setAborted();
 
     // Only update if target changes!
     if (data.x == 0 && data.y == 0 && data.z == 0)
@@ -318,7 +321,7 @@ private:
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "arm_node_action");
+  ros::init(argc, argv, "arm_node");
   ros::NodeHandle node;
 
   /////////////////// Load parameters ///////////////////
