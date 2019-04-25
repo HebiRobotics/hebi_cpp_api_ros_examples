@@ -13,6 +13,7 @@ OdomPublisher::OdomPublisher(::ros::NodeHandle& node)
   msg_.child_frame_id = "base_footprint";
 
   tf_trans_.header.frame_id = "odom";
+  tf_trans_.child_frame_id = "base_footprint";
 }
   
 void OdomPublisher::send(const ::ros::Time& time, const Eigen::Vector3d& global_pose_, const Eigen::Vector3d& global_vel_) {
