@@ -1,4 +1,4 @@
-# hebi_ros_cpp_api_examples
+# hebi_cpp_api_ros_examples
 
 Examples of using HEBI components through ROS, using the HEBI C++ API.
 
@@ -37,7 +37,7 @@ The remaining folders provide the action definitions, launch files, etc. used by
 
 ## Running
 
-To launch an example, run `roslaunch hebi_ros_cpp_api_examples <example name>`.
+To launch an example, run `roslaunch hebi_cpp_api_examples <example name>`.
 
 (if you haven't yet, you will need to run `source devel/setup.sh` first)
 
