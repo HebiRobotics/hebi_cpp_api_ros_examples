@@ -7,7 +7,7 @@ This example demonstrate control of a Rosie HEBI Kit (a 6-DoF arm + gripper on t
 First navigate to your existing catkin workspace (e.g., `/home/hebi/rosie_ws` for a HEBI preinstalled Rosie kit), source your workspace setup file (e.g., `source devel/setup.sh`), and then run the following to start:
 
 ```
-roslaunch hebi_cpp_api_ros_examples rosie_teach_repeat.launch
+roslaunch hebi_cpp_api_examples rosie_teach_repeat.launch
 ```
 
 If the system does not start, check the console for error messages; it is most likely that a module was not found on the network.
