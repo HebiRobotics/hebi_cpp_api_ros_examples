@@ -11,7 +11,6 @@
 
 #include <std_msgs/Float64.h>
 
-#include "hebi_cpp_api/hebi.h"
 #include "hebi_cpp_api/lookup.hpp"
 #include "hebi_cpp_api/group_command.hpp"
 
