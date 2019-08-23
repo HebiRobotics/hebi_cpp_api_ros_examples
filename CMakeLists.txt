@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   geometry_msgs
   tf
+  control_msgs
   trajectory_msgs
   actionlib
   hebi_cpp_api
@@ -48,6 +49,7 @@ generate_messages(
   std_msgs
   nav_msgs
   actionlib_msgs
+  control_msgs
 )
 
 ###################################
@@ -61,6 +63,7 @@ catkin_package(
   CATKIN_DEPENDS geometry_msgs
   CATKIN_DEPENDS tf
   CATKIN_DEPENDS trajectory_msgs
+  CATKIN_DEPENDS control_msgs
   CATKIN_DEPENDS message_runtime
   CATKIN_DEPENDS hebi_cpp_api
 )
@@ -127,3 +130,8 @@ target_link_libraries(arm_node ${catkin_LIBRARIES} )
 add_executable(gripper_node nodes/gripper_node.cpp)
 add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )
+
+add_executable(moveit_arm_node nodes/moveit_arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
+add_dependencies(moveit_arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(moveit_arm_node ${catkin_LIBRARIES} )
+
