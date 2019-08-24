@@ -19,22 +19,17 @@ namespace ros {
 // FollowJointTrajectory (on hebi_arm_controller/follow_joint_trajectory)
 class MoveItArmNode {
 public:
-  MoveItArmNode(arm::Arm& arm, ::ros::NodeHandle& node)
+  MoveItArmNode(arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> moveit_joints)
     : arm_(arm),
       joint_state_publisher_(node.advertise<sensor_msgs::JointState>("joint_states", 100)) {
 
-    // This matches the configuration done in the MoveIt interface
-    // NOTE: this could be parameterized at a later point if necessary
-    joint_state_message_.name = {
-     "HEBI/base/X8_9",
-     "HEBI/shoulder/X8_16",
-     "HEBI/elbow/X8_9",
-     "HEBI/wrist1/X5_1",
-     "HEBI/wrist2/X5_1",
-     "HEBI/wrist3/X5_1"};
-    joint_state_message_.position = { 0, 0, 0, 0, 0, 0 };
-    joint_state_message_.velocity = { 0, 0, 0, 0, 0, 0 };
-    joint_state_message_.effort = { 0, 0, 0, 0, 0, 0 };
+    // The "moveit_joints" here are loaded from a rosparam, and should match those in the
+    // moveit_config for the arm.
+    auto num_modules = moveit_joints.size();
+    joint_state_message_.name = moveit_joints;
+    joint_state_message_.position.resize(num_modules, 0 );
+    joint_state_message_.velocity.resize(num_modules, 0 );
+    joint_state_message_.effort.resize(num_modules, 0 );
 
   }
 
@@ -215,6 +210,16 @@ int main(int argc, char ** argv) {
     return -1;
   }
 
+  std::vector<std::string> moveit_joints;
+  if (node.hasParam("moveit_joints") &&
+      node.getParam("moveit_joints", moveit_joints) &&
+      moveit_joints.size() == names.size()) {
+    ROS_INFO("Found and successfully read 'moveit_joints' parameter");
+  } else {
+    ROS_ERROR("Could not find/read required 'moveit_joints' parameter or parameter did not match length of 'names'; aborting!");
+    return -1;
+  }
+
   // Read the package + path for the gains file
   std::string gains_package;
   if (node.hasParam("gains_package") && node.getParam("gains_package", gains_package)) {
@@ -308,7 +313,7 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize ROS interface ///////////////////
   
-  hebi::ros::MoveItArmNode arm_node(*arm, node);
+  hebi::ros::MoveItArmNode arm_node(*arm, node, moveit_joints);
 
   // Action server for arm motions
   actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> follow_joint_trajectory_action(

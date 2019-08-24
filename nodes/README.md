@@ -95,7 +95,14 @@ Any action currently running is preempted if a subsequent action is sent, or can
 
 Set up as with the `arm_node` above.
 
-In addition, you should have a MoveIt installation as well, and reference the appropriate HEBI moveit config. This example can then be controlled with the ROS move group interface.
+In addition, you should have:
+- a MoveIt installation
+- the `hebi_description` package either installed or in your workspace ( https://github.com/HebiRobotics/hebi_description/ )
+- the appropriate HEBI moveit config (from the `hebi_moveit_configs` package, https://github.com/HebiRobotics/hebi_moveit_configs/ )
+
+This example can then be controlled with the ROS move group interface.
+
+For more information, see the [HEBI MoveIt Configs Documentation](https://github.com/HebiRobotics/hebi_moveit_configs/README.md).
 
 ## To run:
 
