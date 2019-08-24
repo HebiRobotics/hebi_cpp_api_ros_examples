@@ -89,6 +89,39 @@ and then press tab to complete the message type and create a basic yaml message 
 
 Any action currently running is preempted if a subsequent action is sent, or cancelled if a message is received on one of the other channels.
 
+# MoveIt Arm Node (`moveit_arm_node`)
+
+## Requirements:
+
+Set up as with the `arm_node` above.
+
+In addition, you should have:
+- a MoveIt installation
+- the `hebi_description` package either installed or in your workspace ( https://github.com/HebiRobotics/hebi_description/ )
+- the appropriate HEBI moveit config (from the `hebi_moveit_configs` package, https://github.com/HebiRobotics/hebi_moveit_configs/ )
+
+This example can then be controlled with the ROS move group interface.
+
+For more information, see the [HEBI MoveIt Configs Documentation](https://github.com/HebiRobotics/hebi_moveit_configs/README.md).
+
+## To run:
+
+```
+roslaunch hebi_cpp_api_ros_examples moveit_arm_node<configuration>.launch
+```
+
+## To command:
+
+### `hebi_arm_controller/follow_joint_trajectory` action
+
+- This responds to the standard `FollowJointTrajectory` action used by MoveIt.
+
+## Feedback:
+
+### `joint_states`
+
+- This publishes position, velocity, and effort on the `/joint_states` channel.  You may need a robot state publisher running to transform these appropriately using `tf` for use in MoveIt.
+
 # Base nodes (`omni_base_node`, `diff_drive_node`)
 
 ## Requirements:

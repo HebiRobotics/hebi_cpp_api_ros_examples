@@ -24,6 +24,7 @@
   <depend>geometry_msgs</depend>
   <depend>tf</depend>
   <depend>trajectory_msgs</depend>
+  <depend>control_msgs</depend>
   <depend>hebi_cpp_api</depend>
   
   <export />
