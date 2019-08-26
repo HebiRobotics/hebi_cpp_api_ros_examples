@@ -19,7 +19,7 @@ Default values for all parameters are given in the `launch/arm_node*.launch` fil
 ## To run:
 
 ```
-roslaunch hebi_cpp_api_ros_examples arm_node<configuration>.launch
+roslaunch hebi_cpp_api_examples arm_node<configuration>.launch
 ```
 
 ## To command:
@@ -37,7 +37,7 @@ Note: you can use `rostopic pub` on the command line for the following `publish`
 
 ### `cartesian_waypoints`
 
-- Publish `hebi_cpp_api_ros_examples::TargetWaypoint` messages on the `cartesian_waypoints` channel to command a series of cartesian waypoints for the arm to pass through.
+- Publish `hebi_cpp_api_examples::TargetWaypoint` messages on the `cartesian_waypoints` channel to command a series of cartesian waypoints for the arm to pass through.
 
 ### `joint_waypoints`
 
@@ -107,7 +107,7 @@ For more information, see the [HEBI MoveIt Configs Documentation](https://github
 ## To run:
 
 ```
-roslaunch hebi_cpp_api_ros_examples moveit_arm_node<configuration>.launch
+roslaunch hebi_cpp_api_examples moveit_arm_node<configuration>.launch
 ```
 
 ## To command:
@@ -135,13 +135,13 @@ For the omni base, you can also set the `publish_odom` boolean parameter; if set
 ## To run:
 
 ```
-roslaunch hebi_cpp_api_ros_examples omni_base_node.launch
+roslaunch hebi_cpp_api_examples omni_base_node.launch
 ```
 
 or
 
 ```
-roslaunch hebi_cpp_api_ros_examples diff_drive_node.launch
+roslaunch hebi_cpp_api_examples diff_drive_node.launch
 ```
 
 ## To command:
