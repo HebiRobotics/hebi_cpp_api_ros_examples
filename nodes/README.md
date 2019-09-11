@@ -107,8 +107,10 @@ For more information, see the [HEBI MoveIt Configs Documentation](https://github
 ## To run:
 
 ```
-roslaunch hebi_cpp_api_examples moveit_arm_node<configuration>.launch
+roslaunch hebi_cpp_api_examples moveit_arm_node<configuration>.launch arm_type:=<arm_type> gripper_type:=<gripper_type>
 ```
+
+Where `arm_type` is one of the HEBI Arm kit types with a matching MoveIt configs (e.g., `a-2085-04`, `a-2085-05`, `a-2085-06`, etc), and `gripper_type` is optional.  Defaults to no gripper; if "parallel" is given, then this pulls the appropriate moveit config.
 
 ## To command:
 
