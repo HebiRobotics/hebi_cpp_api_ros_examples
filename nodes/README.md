@@ -19,8 +19,10 @@ Default values for all parameters are given in the `launch/arm_node*.launch` fil
 ## To run:
 
 ```
-roslaunch hebi_cpp_api_examples arm_node<configuration>.launch
+roslaunch hebi_cpp_api_examples arm_node.launch arm_type:=<arm_type>
 ```
+
+Where `arm_type` is one of the HEBI Arm kit types with a matching parameter file in `config/` (e.g., `a-2085-04`, `a-2085-05`, `a-2085-06`, etc).
 
 ## To command:
 
@@ -97,7 +99,7 @@ Set up as with the `arm_node` above.
 
 In addition, you should have:
 - a MoveIt installation
-- the `hebi_description` package either installed or in your workspace ( https://github.com/HebiRobotics/hebi_description/ )
+- the `hebi_description` package either installed (sudo apt install `ros-<distro>-hebi_description`) or in your workspace ( https://github.com/HebiRobotics/hebi_description/ )
 - the appropriate HEBI moveit config (from the `hebi_moveit_configs` package, https://github.com/HebiRobotics/hebi_moveit_configs/ )
 
 This example can then be controlled with the ROS move group interface.
@@ -107,7 +109,7 @@ For more information, see the [HEBI MoveIt Configs Documentation](https://github
 ## To run:
 
 ```
-roslaunch hebi_cpp_api_examples moveit_arm_node<configuration>.launch arm_type:=<arm_type> gripper_type:=<gripper_type>
+roslaunch hebi_cpp_api_examples moveit_arm_node.launch arm_type:=<arm_type> gripper_type:=<gripper_type>
 ```
 
 Where `arm_type` is one of the HEBI Arm kit types with a matching MoveIt configs (e.g., `a-2085-04`, `a-2085-05`, `a-2085-06`, etc), and `gripper_type` is optional.  Defaults to no gripper; if "parallel" is given, then this pulls the appropriate moveit config.
