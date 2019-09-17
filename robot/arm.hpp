@@ -19,9 +19,9 @@ namespace arm {
 // Typical usage is:
 //
 // arm::Params params;
-// params.families = {"HEBI"};
-// params.names = {"Base", "Shoulder", "Elbow", "Wrist1", "Wrist2", "Wrist3"};
-// params.hrdf_file = "my_robot.hrdf"
+// params.families_ = {"HEBI"};
+// params.names_ = {"Base", "Shoulder", "Elbow", "Wrist1", "Wrist2", "Wrist3"};
+// params.hrdf_file_ = "my_robot.hrdf"
 //
 // auto arm = Arm::create(time.now(), params);
 // arm->loadGains("my_robot_gains.xml");
@@ -47,21 +47,21 @@ public:
   struct Params {
     // The family and names passed to the "lookup" function to find modules
     // Both are required.
-    std::vector<std::string> families;
-    std::vector<std::string> names;
+    std::vector<std::string> families_;
+    std::vector<std::string> names_;
     // How long a command takes effect for on the robot before expiring.
-    int command_lifetime = 100;
+    int command_lifetime_ = 100;
     // Loop rate, in Hz.  This is how fast the arm update loop will nominally
     // run.
-    double control_frequency = 200.f;
+    double control_frequency_ = 200.f;
 
     // The robot description.  Either supply the hrdf_file _or_ the robot_model.
-    std::string hrdf_file;
-    std::unique_ptr<robot_model::RobotModel> robot_model;
+    std::string hrdf_file_;
+    std::shared_ptr<robot_model::RobotModel> robot_model_;
 
     // Optionally, supply an end effector to be controlled by the "aux" state of
     // provided goals.
-    std::shared_ptr<EndEffectorBase> end_effector;
+    std::shared_ptr<EndEffectorBase> end_effector_;
   };
 
   // Creates an "Arm" object, and puts it into a "weightless" no-goal control
@@ -231,11 +231,11 @@ private:
   // Private arm constructor
   Arm(double t,
       std::shared_ptr<Group> group,
-      std::unique_ptr<robot_model::RobotModel> robot_model,
+      std::shared_ptr<robot_model::RobotModel> robot_model,
       std::shared_ptr<EndEffectorBase> end_effector = nullptr) :
     last_time_(t),
     group_(group),
-    robot_model_(std::move(robot_model)),
+    robot_model_(robot_model),
     end_effector_(end_effector),
     pos_(Eigen::VectorXd::Zero(group->size())),
     vel_(Eigen::VectorXd::Zero(group->size())),
@@ -245,7 +245,7 @@ private:
 
   double last_time_;
   std::shared_ptr<Group> group_;
-  std::unique_ptr<robot_model::RobotModel> robot_model_;
+  std::shared_ptr<robot_model::RobotModel> robot_model_;
   std::shared_ptr<EndEffectorBase> end_effector_;
 
   // The joint angle trajectory for reaching the current goal.
