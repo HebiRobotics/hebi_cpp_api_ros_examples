@@ -167,6 +167,9 @@ public:
   // or we have just begun, progress is "0".
   double goalProgress() const;
 
+  // Have we reached the goal?  If there is no goal, returns 'false'
+  bool atGoal() const { return goalProgress() >= 1.0; }
+
   // Cancels any active goal, returning to a "weightless" state which does not
   // actively command position or velocity.
   void cancelGoal();

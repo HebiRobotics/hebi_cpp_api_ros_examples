@@ -22,11 +22,11 @@ namespace ros {
 
 class ArmNode {
 public:
-  ArmNode(arm::Arm& arm) : arm_(arm) { }
+  ArmNode(arm::Arm& arm, const Eigen::VectorXd& home_position) : arm_(arm), home_position_(home_position) { }
 
   // Callback for trajectories with joint angle waypoints
   void updateJointWaypoints(trajectory_msgs::JointTrajectory joint_trajectory) {
-    auto num_joints = arm_.getGroup()->size();
+    auto num_joints = arm_.size();
     auto num_waypoints = joint_trajectory.points.size();
     Eigen::MatrixXd pos(num_joints, num_waypoints);
     Eigen::MatrixXd vel(num_joints, num_waypoints);
@@ -103,7 +103,7 @@ public:
 
     // Initialize target from feedback as necessary
     if (!isTargetInitialized()) {
-      auto pos = arm_.getKinematics().FK(arm_.getLastFeedback().getPositionCommand());
+      auto pos = arm_.FK3Dof(arm_.lastFeedback().getPositionCommand());
       target_xyz_.x() = pos.x();
       target_xyz_.y() = pos.y();
       target_xyz_.z() = pos.z();
@@ -123,13 +123,20 @@ public:
     if (msg.data) {
       // Go into a passive mode so the system can be moved by hand
       ROS_INFO("Pausing active command (entering grav comp mode)");
-      arm_.getTrajectory().pauseActiveCommand();
+      arm_.cancelGoal();
     } else {
       ROS_INFO("Resuming active command"); 
       auto t = ::ros::Time::now().toSec();
-      const auto& last_fbk = arm_.getLastFeedback();
-      arm_.getTrajectory().resumeActiveCommand(t, last_fbk);
-      target_xyz_ = arm_.getKinematics().FK(last_fbk.getPosition());
+      auto last_position = arm_.lastFeedback().getPosition();
+      arm_.setGoal({last_position});
+      target_xyz_ = arm_.FK3Dof(last_position);
+    }
+  }
+
+  void setColor(const Color& color) {
+    auto& command = arm_.pendingCommand();
+    for (int i = 0; i < command.size(); ++i) {
+      command[i].led().set(color);
     }
   }
 
@@ -149,13 +156,13 @@ public:
     for (size_t i = 0; i < num_waypoints; ++i) {
       // Special homing values...
       if (goal->x[i] == 100 && goal->y[i] == 100 && goal->z[i] == 100) {
-        xyz_positions.col(i) = arm_.getHomePositionXYZ();
+        xyz_positions.col(i) = home_position_;
         tip_directions(0, i) = 1;
         tip_directions(1, i) = 0;
         tip_directions(2, i) = 0;
       }
       else if (goal->x[i] == 101 && goal->y[i] == 101 && goal->z[i] == 101) {
-        xyz_positions.col(i) = arm_.getHomePositionXYZ();
+        xyz_positions.col(i) = home_position_;
         tip_directions(0, i) = 0;
         tip_directions(1, i) = 0;
         tip_directions(2, i) = -1;
@@ -172,10 +179,11 @@ public:
 
     updateCartesianWaypoints(xyz_positions, &tip_directions);
 
+    // Set LEDs to a particular color, or clear them.
     Color color;
     if (goal->set_color)
       color = Color(goal->r, goal->g, goal->b, 255);
-    arm_.setColor(color);
+    setColor(color);
 
     // Wait until the action is complete, sending status/feedback along the
     // way.
@@ -186,7 +194,7 @@ public:
     while (true) {
       if (action_server_->isPreemptRequested() || !::ros::ok()) {
         ROS_INFO("Arm motion action was preempted");
-        arm_.clearColor();
+        setColor({0,0,0,0});
         // Note -- the `startArmMotion` function will not be called until the
         // action server has been preempted here:
         action_server_->setPreempted();
@@ -195,18 +203,17 @@ public:
 
       if (!action_server_->isActive() || !::ros::ok()) {
         ROS_INFO("Arm motion was cancelled");
-        arm_.clearColor();
+        setColor({0,0,0,0});
         return;
       }
 
       auto t = ::ros::Time::now().toSec();
 
       // Publish progress:
-      auto& arm_traj = arm_.getTrajectory();
-      feedback.percent_complete = arm_.trajectoryPercentComplete(t);
+      feedback.percent_complete = arm_.goalProgress() * 100.0;
       action_server_->publishFeedback(feedback);
  
-      if (arm_.isTrajectoryComplete(t)) {
+      if (arm_.atGoal()) {
         break;
       }
 
@@ -214,7 +221,7 @@ public:
       r.sleep(); 
     }
     
-    arm_.clearColor();
+    setColor({0,0,0,0});
 
     // publish when the arm is done with a motion
     ROS_INFO("Completed arm motion action");
@@ -236,6 +243,8 @@ private:
     std::numeric_limits<double>::quiet_NaN(),
     std::numeric_limits<double>::quiet_NaN()};
 
+  Eigen::VectorXd home_position_;
+
   actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction>* action_server_ {nullptr};
 
   // Helper function that indicates whether or not was have received a
@@ -251,7 +260,7 @@ private:
     // Data sanity check:
     if (angles.rows() != velocities.rows()       || // Number of joints
         angles.rows() != accelerations.rows()    ||
-        angles.rows() != arm_.getGroup()->size() ||
+        angles.rows() != arm_.size() ||
         angles.cols() != velocities.cols()       || // Number of waypoints
         angles.cols() != accelerations.cols()    ||
         angles.cols() != times.size()            ||
@@ -261,13 +270,11 @@ private:
     }
 
     // Update stored target position, based on final joint angles.
-    target_xyz_ = arm_.getKinematics().FK(angles.rightCols<1>());
+    target_xyz_ = arm_.FK3Dof(angles.rightCols<1>());
 
     // Replan:
-    arm_.getTrajectory().replan(
-      ::ros::Time::now().toSec(),
-      arm_.getLastFeedback(),
-      angles, velocities, accelerations, times);
+    arm::Goal arm_goal(times, angles, velocities, accelerations);
+    arm_.setGoal(arm_goal);
   }
 
   // Helper function to condense functionality between various message/action callbacks above
@@ -289,28 +296,25 @@ private:
 
     // Plan to each subsequent point from the last position
     // (We use the last position command for smoother motion)
-    Eigen::VectorXd last_position = arm_.getLastFeedback().getPositionCommand();
+    Eigen::VectorXd last_position = arm_.lastFeedback().getPositionCommand();
 
     // For each waypoint, find the joint angles to move to it, starting from the last
     // waypoint, and save into the position vector.
     if (end_tip_directions) {
       // If we are given tip directions, add these too...
       for (size_t i = 0; i < num_waypoints; ++i) {
-        last_position = arm_.getKinematics().solveIK(last_position, xyz_positions.col(i), end_tip_directions->col(i));
+        last_position = arm_.solveIK5Dof(last_position, xyz_positions.col(i), end_tip_directions->col(i));
         positions.col(i) = last_position; 
       }
     } else {
       for (size_t i = 0; i < num_waypoints; ++i) {
-        last_position = arm_.getKinematics().solveIK(last_position, xyz_positions.col(i));
+        last_position = arm_.solveIK3Dof(last_position, xyz_positions.col(i));
         positions.col(i) = last_position; 
       }
     }
 
     // Replan:
-    arm_.getTrajectory().replan(
-      ::ros::Time::now().toSec(),
-      arm_.getLastFeedback(),
-      positions);
+    arm_.setGoal({positions});
   }
  
 };
@@ -385,17 +389,30 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize arm ///////////////////
 
-  // Load robot model
-  auto model = hebi::robot_model::RobotModel::loadHRDF(ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file);
-  hebi::arm::ArmKinematics arm_kinematics(*model);
+  // Create arm
+  hebi::arm::Arm::Params params;
+  params.families_ = families;
+  params.names_ = names;
+  params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
+
+  auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  if (!arm) {
+    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+    return -1;
+  }
+  
+  // Load the appropriate gains file
+  if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
+    ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
+  }
 
   // Get the home position, defaulting to (nearly) zero
-  Eigen::VectorXd home_position(model->getDoFCount());
+  Eigen::VectorXd home_position(arm->size());
   if (home_position_vector.empty()) {
     for (size_t i = 0; i < home_position.size(); ++i) {
       home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
     }
-  } else if (home_position_vector.size() != model->getDoFCount()) {
+  } else if (home_position_vector.size() != arm->size()) {
     ROS_ERROR("'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
     return -1;
   } else {
@@ -404,39 +421,9 @@ int main(int argc, char ** argv) {
     }
   }
 
-  // Create arm and plan initial trajectory
-  auto arm = hebi::arm::Arm::createArm(
-    families,                  // Family
-    names,                     // Names
-    home_position,             // Home position
-    arm_kinematics,            // Kinematics object
-    ros::Time::now().toSec()); // Starting time (for trajectory)  
-
-  if (!arm) {
-    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
-    return -1;
-  }
-
-  // Load the appropriate gains file
-  {
-    hebi::GroupCommand gains_cmd(arm -> size());
-    if (!gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file))
-      ROS_ERROR("Could not load arm gains file!");
-    else {
-      bool success = false;
-      for (size_t i = 0; i < 5; ++i) {
-        success = arm->getGroup()->sendCommandWithAcknowledgement(gains_cmd);
-        if (success)
-          break;
-      }
-      if (!success)
-        ROS_ERROR("Could not set arm gains!");
-    }
-  }
-
   /////////////////// Initialize ROS interface ///////////////////
    
-  hebi::ros::ArmNode arm_node(*arm);
+  hebi::ros::ArmNode arm_node(*arm, home_position);
 
   // Action server for arm motions
   actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction> arm_motion_action(
@@ -470,12 +457,18 @@ int main(int argc, char ** argv) {
 
   /////////////////// Main Loop ///////////////////
 
-  // Main command loop
+  // We update with a current timestamp so the "setGoal" function
+  // is planning from the correct time for a smooth start
+  arm->update(ros::Time::now().toSec());
+  arm->setGoal({home_position});
+
   while (ros::ok()) {
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
     if (!arm->update(ros::Time::now().toSec()))
       ROS_WARN("Error Getting Feedback -- Check Connection");
+    else if (!arm->send())
+      ROS_WARN("Error Sending Commands -- Check Connection");
 
     // Call any pending callbacks (note -- this may update our planned motion)
     ros::spinOnce();
