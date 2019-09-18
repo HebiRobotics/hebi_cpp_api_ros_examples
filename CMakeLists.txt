@@ -125,11 +125,11 @@ file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/gains/omni_base_gains.xml
 
 # Different nodes for the arm kits
 
-add_executable(omni_base_node nodes/omni_base_node.cpp src/util/omni_base.cpp src/util/odom_publisher.cpp)
+add_executable(omni_base_node src/kits/base/omni_base_node.cpp src/util/omni_base.cpp src/util/odom_publisher.cpp)
 add_dependencies(omni_base_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 
-add_executable(omni_base_controller_node nodes/omni_base_controller_node.cpp src/util/mobile_io.cpp)
+add_executable(omni_base_controller_node src/kits/base/omni_base_controller_node.cpp src/util/mobile_io.cpp)
 add_dependencies(omni_base_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_controller_node ${catkin_LIBRARIES} )
 
@@ -137,7 +137,7 @@ add_executable(rosie_teach_repeat_controller_node src/kits/rosie/teach_repeat_co
 add_dependencies(rosie_teach_repeat_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rosie_teach_repeat_controller_node ${catkin_LIBRARIES} )
 
-add_executable(diff_drive_node nodes/diff_drive_node.cpp src/util/diff_drive.cpp)
+add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp src/util/diff_drive.cpp)
 add_dependencies(diff_drive_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 
@@ -155,7 +155,7 @@ add_executable(arm_moveit_node src/kits/arm/arm_moveit_node.cpp src/util/arm.cpp
 add_dependencies(arm_moveit_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_moveit_node ${catkin_LIBRARIES} )
 
-add_executable(gripper_node nodes/gripper_node.cpp)
+add_executable(gripper_node src/kits/arm/gripper_node.cpp)
 add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )
 
