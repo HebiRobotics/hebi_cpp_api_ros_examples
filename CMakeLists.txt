@@ -86,8 +86,11 @@ include_directories(
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 install(FILES
-  launch/arm_node_4_dof.launch
-  launch/arm_node_6_dof.launch
+  config/a-2085-04_params.yaml
+  config/a-2085-05_params.yaml
+  config/a-2085-06_params.yaml
+  launch/arm_node.launch
+  launch/move_it_node.launch
   launch/diff_drive.launch
   launch/omni_base.launch
   launch/omni_base_control.launch
