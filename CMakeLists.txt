@@ -106,6 +106,8 @@ install(FILES
 file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/gains/omni_base_gains.xml
       DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
+# Different nodes for the arm kits
+
 add_executable(omni_base_node nodes/omni_base_node.cpp robot/omni_base.cpp util/odom_publisher.cpp)
 add_dependencies(omni_base_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
@@ -122,19 +124,21 @@ add_executable(diff_drive_node nodes/diff_drive_node.cpp robot/diff_drive.cpp)
 add_dependencies(diff_drive_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 
-add_executable(teach_repeat_node nodes/teach_repeat_node.cpp robot/arm.cpp robot/kinematics_helper.cpp util/path.cpp util/waypoint.cpp)
-add_dependencies(teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-target_link_libraries(teach_repeat_node ${catkin_LIBRARIES} )
+# Different nodes for the arm kits
 
-add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
+add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp robot/arm.cpp robot/kinematics_helper.cpp util/path.cpp util/waypoint.cpp)
+add_dependencies(arm_teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_teach_repeat_node ${catkin_LIBRARIES} )
+
+add_executable(arm_node src/kits/arm/arm_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
 add_dependencies(arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
+
+add_executable(arm_moveit_node src/kits/arm/arm_moveit_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
+add_dependencies(arm_moveit_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_moveit_node ${catkin_LIBRARIES} )
 
 add_executable(gripper_node nodes/gripper_node.cpp)
 add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )
-
-add_executable(moveit_arm_node nodes/moveit_arm_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
-add_dependencies(moveit_arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-target_link_libraries(moveit_arm_node ${catkin_LIBRARIES} )
 

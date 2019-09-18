@@ -186,7 +186,7 @@ private:
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "moveit_arm_node");
+  ros::init(argc, argv, "arm_moveit_node");
   ros::NodeHandle node;
 
   /////////////////// Load parameters ///////////////////

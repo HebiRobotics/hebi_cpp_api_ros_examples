@@ -1,4 +1,4 @@
-#include "teach_repeat_node.hpp"
+#include "arm_teach_repeat_node.hpp"
 
 #include <ros/ros.h>
 #include <ros/console.h>
@@ -279,7 +279,7 @@ bool loadRequiredParam(ros::NodeHandle& node, Param& param, const std::string& p
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "teach_repeat_node");
+  ros::init(argc, argv, "arm_teach_repeat_node");
   ros::NodeHandle node;
 
   /////////////////// Load parameters ///////////////////
