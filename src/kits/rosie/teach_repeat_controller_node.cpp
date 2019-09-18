@@ -9,7 +9,7 @@
 #include "hebi_cpp_api_examples/SaveWaypoint.h"
 #include "hebi_cpp_api_examples/Playback.h"
 
-#include "util/mobile_io.hpp"
+#include "src/util/mobile_io.hpp"
 
 int main(int argc, char ** argv) {
 

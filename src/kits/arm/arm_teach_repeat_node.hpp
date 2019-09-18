@@ -8,8 +8,8 @@
 #include "hebi_cpp_api_examples/EndPath.h"
 #include "hebi_cpp_api_examples/OffsetPlayback.h"
 
-#include "util/waypoint.hpp"
-#include "util/path.hpp"
+#include "src/util/waypoint.hpp"
+#include "src/util/path.hpp"
 
 namespace hebi {
 

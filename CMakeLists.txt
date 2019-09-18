@@ -125,15 +125,15 @@ file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/gains/omni_base_gains.xml
 
 # Different nodes for the arm kits
 
-add_executable(omni_base_node nodes/omni_base_node.cpp src/util/omni_base.cpp util/odom_publisher.cpp)
+add_executable(omni_base_node nodes/omni_base_node.cpp src/util/omni_base.cpp src/util/odom_publisher.cpp)
 add_dependencies(omni_base_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 
-add_executable(omni_base_controller_node nodes/omni_base_controller_node.cpp util/mobile_io.cpp)
+add_executable(omni_base_controller_node nodes/omni_base_controller_node.cpp src/util/mobile_io.cpp)
 add_dependencies(omni_base_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_controller_node ${catkin_LIBRARIES} )
 
-add_executable(rosie_teach_repeat_controller_node src/kits/rosie/teach_repeat_controller_node.cpp util/mobile_io.cpp)
+add_executable(rosie_teach_repeat_controller_node src/kits/rosie/teach_repeat_controller_node.cpp src/util/mobile_io.cpp)
 add_dependencies(rosie_teach_repeat_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rosie_teach_repeat_controller_node ${catkin_LIBRARIES} )
 
@@ -143,7 +143,7 @@ target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 
 # Different nodes for the arm kits
 
-add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp util/path.cpp util/waypoint.cpp)
+add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp src/util/path.cpp src/util/waypoint.cpp)
 add_dependencies(arm_teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_teach_repeat_node ${catkin_LIBRARIES} )
 

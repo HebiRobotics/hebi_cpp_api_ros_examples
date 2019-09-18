@@ -13,7 +13,7 @@
 
 #include "src/util/omni_base.hpp"
 
-#include "util/odom_publisher.hpp"
+#include "src/util/odom_publisher.hpp"
 
 #include <ros/console.h>
 #include <ros/package.h>
