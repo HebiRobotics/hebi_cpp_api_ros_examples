@@ -11,7 +11,7 @@
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
 
-#include "robot/diff_drive.hpp"
+#include "src/util/diff_drive.hpp"
 
 #include <ros/console.h>
 #include <ros/package.h>

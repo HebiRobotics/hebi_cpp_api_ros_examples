@@ -11,7 +11,7 @@
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
 
-#include "robot/omni_base.hpp"
+#include "src/util/omni_base.hpp"
 
 #include "util/odom_publisher.hpp"
 

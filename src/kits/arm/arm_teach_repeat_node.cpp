@@ -7,7 +7,7 @@
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/robot_model.hpp"
 
-#include "robot/arm.hpp"
+#include "src/util/arm.hpp"
 
 namespace hebi {
 namespace ros {
