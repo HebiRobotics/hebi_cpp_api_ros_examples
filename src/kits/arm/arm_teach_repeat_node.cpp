@@ -103,7 +103,7 @@ void TeachRepeatNode::saveWaypoint(hebi_cpp_api_examples::SaveWaypoint msg) {
     waypoint_name = msg.name;
     wp_index = tryGetNameIndex(waypoint_name, waypoints_);
   }
-  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/waypoints/" + waypoint_name + ".txt";
+  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/data/waypoints/" + waypoint_name + ".txt";
 
   // Add waypoint; save to file
   if (wp_index != -1)
@@ -145,7 +145,7 @@ void TeachRepeatNode::endRecordPath(hebi_cpp_api_examples::EndPath msg) {
     path_index = tryGetNameIndex(path_name, paths_);
   }
 
-  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/paths/" + path_name + ".txt";
+  std::string filename = ::ros::package::getPath("hebi_cpp_api_examples") + "/data/paths/" + path_name + ".txt";
 
   // Add path, reset pending path, Save to file
   if (path_index != -1) {
@@ -356,7 +356,7 @@ int main(int argc, char ** argv) {
   ROS_WARN("Loading Paths:");
   ROS_WARN(" ");
   for (const auto& short_path_name : enabled_paths ) {
-    std::string path_name = "paths/" + short_path_name;
+    std::string path_name = "data/paths/" + short_path_name;
     std::vector<double> path_pts;
     if (node.hasParam(path_name) && node.getParam(path_name, path_pts) && path_pts.size() % num_joints == 0) {
       teach_repeat_node.addPath(hebi::Path(short_path_name, path_pts, num_joints));
@@ -371,7 +371,7 @@ int main(int argc, char ** argv) {
   ROS_WARN("Loading Waypoints:");
   ROS_WARN(" ");
   for (const auto& short_waypoint_name : enabled_waypoints ) {
-    std::string waypoint_name = "waypoints/" + short_waypoint_name;
+    std::string waypoint_name = "data/waypoints/" + short_waypoint_name;
     std::vector<double> waypoint_pts;
     if (node.hasParam(waypoint_name) && node.getParam(waypoint_name, waypoint_pts) && waypoint_pts.size() == num_joints) {
       teach_repeat_node.addWaypoint(hebi::Waypoint(short_waypoint_name, waypoint_pts));

@@ -1,10 +1,10 @@
 <launch>
   <!-- Parameters for the waypoints, paths, module names, gains, hrdf, etc -->
-  <rosparam command="load" file="$(find hebi_cpp_api_examples)/paths/6_dof_circle.txt"/>
-  <rosparam command="load" file="$(find hebi_cpp_api_examples)/waypoints/6_dof_home.txt"/>
-  <rosparam command="load" file="$(find hebi_cpp_api_examples)/waypoints/6_dof_stow.txt"/>
-  <rosparam command="load" file="$(find hebi_cpp_api_examples)/waypoints/6_dof_pick.txt"/>
-  <rosparam command="load" file="$(find hebi_cpp_api_examples)/waypoints/6_dof_place.txt"/>
+  <rosparam command="load" file="$(find hebi_cpp_api_examples)/data/paths/6_dof_circle.txt"/>
+  <rosparam command="load" file="$(find hebi_cpp_api_examples)/data/waypoints/6_dof_home.txt"/>
+  <rosparam command="load" file="$(find hebi_cpp_api_examples)/data/waypoints/6_dof_stow.txt"/>
+  <rosparam command="load" file="$(find hebi_cpp_api_examples)/data/waypoints/6_dof_pick.txt"/>
+  <rosparam command="load" file="$(find hebi_cpp_api_examples)/data/waypoints/6_dof_place.txt"/>
   <rosparam>
     enabled_paths: [ "circle" ]
     enabled_waypoints: [ "home", "stow", "pick", "place" ]

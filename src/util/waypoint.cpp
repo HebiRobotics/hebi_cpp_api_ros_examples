@@ -16,7 +16,7 @@ Waypoint::Waypoint(const std::string& name, const std::vector<double>& waypoint)
 void Waypoint::write(const std::string& filename) {
   std::ofstream file;
   file.open(filename, std::ofstream::out); 
-  file << "waypoints/" << name_ << ": [\n";
+  file << "data/waypoints/" << name_ << ": [\n";
   for (int i = 0; i < angles_.size(); ++i)
     file << angles_(i) << ",";
   file << "\n]";
