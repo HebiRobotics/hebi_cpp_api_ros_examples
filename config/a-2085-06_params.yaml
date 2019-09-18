@@ -2,7 +2,7 @@
 names: [ "Base", "Shoulder", "Elbow", "Wrist1", "Wrist2", "Wrist3" ]
 families: [ "HEBI" ]
 gains_package: "hebi_cpp_api_examples"
-gains_file: "gains/6_dof_arm_gains.xml"
+gains_file: "config/gains/a-2085-06_gains.xml"
 hrdf_package: "hebi_cpp_api_examples"
 hrdf_file: "config/hrdf/a-2085-06.hrdf"
 home_position: [ 0.01, 2.09439, 2.09439, 0.01, 1.5707963, 0.01 ]

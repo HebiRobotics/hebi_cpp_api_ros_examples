@@ -6,7 +6,7 @@
     arm/names: [ "Base", "Shoulder", "Elbow", "Wrist1", "Wrist2", "Wrist3" ]
     arm/families: [ "Rosie" ]
     arm/gains_package: "hebi_cpp_api_examples"
-    arm/gains_file: "gains/6_dof_arm_gains.xml"
+    arm/gains_file: "config/gains/a-2085-06_gains.xml"
     arm/hrdf_package: "hebi_cpp_api_examples"
     arm/hrdf_file: "config/hrdf/a-2085-06.hrdf"
     arm/home_position: [ 0, 1.69517, 2.16275, 2.44159, -1.39, 1.57459 ]
@@ -16,7 +16,7 @@
     gripper/name: "Spool"
     gripper/family: "Rosie"
     gripper/gains_package: "hebi_cpp_api_examples"
-    gripper/gains_file: "gains/gripper_spool_gains.xml"
+    gripper/gains_file: "config/gains/gripper_spool_gains.xml"
   </rosparam>
 
   <!-- Robot components -->

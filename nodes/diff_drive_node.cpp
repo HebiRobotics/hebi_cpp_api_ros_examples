@@ -146,7 +146,7 @@ int main(int argc, char ** argv) {
   auto base = hebi::DiffDrive::create(
     families, // Famil(ies)
     names, // Names
-    ::ros::package::getPath("hebi_cpp_api_examples") + "/gains/diff_drive_gains.xml", // Gains file
+    ::ros::package::getPath("hebi_cpp_api_examples") + "/config/gains/diff_drive_gains.xml", // Gains file
     ros::Time::now().toSec(), // Starting time (for trajectory)
     error_out);
   if (!base) {

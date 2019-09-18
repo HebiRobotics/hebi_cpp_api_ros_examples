@@ -89,21 +89,38 @@ install(FILES
   config/a-2085-04_params.yaml
   config/a-2085-05_params.yaml
   config/a-2085-06_params.yaml
+
+  config/hrdf/3_dof_arm.hrdf
+  config/hrdf/a-2084-01.hrdf
+  config/hrdf/a-2085-04.hrdf
+  config/hrdf/a-2085-05.hrdf
+  config/hrdf/a-2085-06.hrdf
+  config/hrdf/a-2085-06-parallel-gripper.hrdf
+
+  config/gains/3_dof_arm_gains.xml
+  config/gains/a-2084-01_gains.xml
+  config/gains/a-2085-04_gains.xml
+  config/gains/a-2085-05_gains.xml
+  config/gains/a-2085-06_gains.xml
+  config/gains/omni_base_gains.xml
+  config/gains/diff_drive_gains.xml
+  config/gains/gripper_spool_gains.xml
+
   launch/arm_node.launch
-  launch/move_it_node.launch
+  launch/arm_move_it_node.launch
+  launch/arm_teach_repeat_6_dof.launcha
+
   launch/diff_drive.launch
   launch/omni_base.launch
   launch/omni_base_control.launch
-  launch/teach_repeat_6_dof.launch
-  kits/rosie/rosie_teach_repeat.launch
 
-  gains/omni_base_gains.xml
+  launch/rosie_teach_repeat.launch
 
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 ## I don't think this is the _right_ way to do this, but it works...
-file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/gains/omni_base_gains.xml
+file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/gains/omni_base_gains.xml
       DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
 # Different nodes for the arm kits
@@ -116,7 +133,7 @@ add_executable(omni_base_controller_node nodes/omni_base_controller_node.cpp uti
 add_dependencies(omni_base_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_controller_node ${catkin_LIBRARIES} )
 
-add_executable(rosie_teach_repeat_controller_node kits/rosie/teach_repeat_controller_node.cpp util/mobile_io.cpp)
+add_executable(rosie_teach_repeat_controller_node src/kits/rosie/teach_repeat_controller_node.cpp util/mobile_io.cpp)
 add_dependencies(rosie_teach_repeat_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rosie_teach_repeat_controller_node ${catkin_LIBRARIES} )
 
