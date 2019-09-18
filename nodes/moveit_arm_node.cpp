@@ -82,13 +82,9 @@ public:
         accelerations(dest_joint, wp - 1) = waypoint.accelerations[j];
       }
     }
-    arm_.getTrajectory().replan(
-      ::ros::Time::now().toSec(), // Starting now
-      arm_.getLastFeedback(),
-      positions,
-      velocities,
-      accelerations,
-      times, false);
+
+    arm::Goal arm_goal(times, positions, velocities, accelerations);
+    arm_.setGoal(arm_goal);
 
     /////////////////////////////////
     // Execute trajectory
@@ -123,7 +119,7 @@ public:
       // accomplish this.
       // action_server_->publishFeedback(feedback);
  
-      if (arm_.isTrajectoryComplete(t)) {
+      if (arm_.atGoal()) {
         break;
       }
 
@@ -148,14 +144,16 @@ public:
   bool update(::ros::Time t) {
     static int seq = 0;
 
-    // Update arm
+    // Update arm, and send new commands
     bool res = arm_.update(t.toSec());
+    if (res)
+      res = arm_.send();
 
     // Update position and publish
 
     // Note -- we don't need to reorder here, b/c we are using the HEBI ordering
     // defined when we filled in the message in the MoveItArmNode constructor
-    auto& gf = arm_.getLastFeedback();
+    auto& gf = arm_.lastFeedback();
     auto pos = gf.getPosition();
     auto vel = gf.getVelocity();
     auto eff = gf.getEffort();
@@ -262,52 +260,35 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize arm ///////////////////
 
-  // Load robot model
-  auto model = hebi::robot_model::RobotModel::loadHRDF(ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file);
-  hebi::arm::ArmKinematics arm_kinematics(*model);
+  // Create arm
+  hebi::arm::Arm::Params params;
+  params.families_ = families;
+  params.names_ = names;
+  params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
+
+  auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  if (!arm) {
+    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+    return -1;
+  }
+  
+  // Load the appropriate gains file
+  if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
+    ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
+  }
 
   // Get the home position, defaulting to (nearly) zero
-  Eigen::VectorXd home_position(model->getDoFCount());
+  Eigen::VectorXd home_position(arm->size());
   if (home_position_vector.empty()) {
     for (size_t i = 0; i < home_position.size(); ++i) {
       home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
     }
-  } else if (home_position_vector.size() != model->getDoFCount()) {
+  } else if (home_position_vector.size() != arm->size()) {
     ROS_ERROR("'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
     return -1;
   } else {
     for (size_t i = 0; i < home_position.size(); ++i) {
       home_position[i] = home_position_vector[i];
-    }
-  }
-
-  // Create arm and plan initial trajectory
-  auto arm = hebi::arm::Arm::createArm(
-    families,                  // Family
-    names,                     // Names
-    home_position,             // Home position
-    arm_kinematics,            // Kinematics object
-    ros::Time::now().toSec()); // Starting time (for trajectory)  
-
-  if (!arm) {
-    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
-    return -1;
-  }
-
-  // Load the appropriate gains file
-  {
-    hebi::GroupCommand gains_cmd(arm -> size());
-    if (!gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file))
-      ROS_ERROR("Could not load arm gains file!");
-    else {
-      bool success = false;
-      for (size_t i = 0; i < 5; ++i) {
-        success = arm->getGroup()->sendCommandWithAcknowledgement(gains_cmd);
-        if (success)
-          break;
-      }
-      if (!success)
-        ROS_ERROR("Could not set arm gains!");
     }
   }
 
@@ -323,6 +304,11 @@ int main(int argc, char ** argv) {
   follow_joint_trajectory_action.start();
 
   /////////////////// Main Loop ///////////////////
+
+  // We update with a current timestamp so the "setGoal" function
+  // is planning from the correct time for a smooth start
+  arm_node.update(ros::Time::now());
+  arm->setGoal({home_position});
 
   while (ros::ok()) {
 

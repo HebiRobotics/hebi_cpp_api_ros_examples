@@ -1,22 +1,19 @@
-#include "arm_kinematics.hpp"
-#include "util/grav_comp.hpp"
+#include "kinematics_helper.hpp"
+
+#include "hebi_cpp_api/robot_model.hpp"
 
 namespace hebi {
 namespace arm {
 
-ArmKinematics::ArmKinematics(const hebi::robot_model::RobotModel& model)
-  : model_(model), masses_(model.getFrameCount(HebiFrameTypeCenterOfMass)) {
-  // Update the masses
-  model_.getMasses(masses_);
-}
-  
-void ArmKinematics::setJointLimits(const Eigen::VectorXd& min_positions, const Eigen::VectorXd& max_positions) {
+void KinematicsHelper::setJointLimits(
+  const robot_model::RobotModel& robot_model,
+  const Eigen::VectorXd& min_positions,
+  const Eigen::VectorXd& max_positions)
+{
   // Reset:
-  use_joint_limits_ = false;
-  min_positions_.resize(0);
-  max_positions_.resize(0);
+  clearJointLimits();
 
-  size_t expected_size = model_.getDoFCount();
+  size_t expected_size = robot_model.getDoFCount();
   if (min_positions.size() != expected_size || max_positions.size() != expected_size)
     return;
 
@@ -38,23 +35,30 @@ void ArmKinematics::setJointLimits(const Eigen::VectorXd& min_positions, const E
   }
 }
 
-// Return the joint angles to move to a given xyz location
-Eigen::VectorXd ArmKinematics::solveIK(
-  const Eigen::VectorXd& initial_positions,
-  const Eigen::Vector3d& target_xyz) const {
-  // NOTE: may want to customize the IK here!
+void KinematicsHelper::clearJointLimits()
+{
+  use_joint_limits_ = false;
+  min_positions_.resize(0);
+  max_positions_.resize(0);
+}
 
+Eigen::VectorXd KinematicsHelper::solveIK3Dof(
+  const robot_model::RobotModel& robot_model,
+  const Eigen::VectorXd& initial_positions,
+  const Eigen::Vector3d& target_xyz) const
+{
+  // NOTE: may want to customize the IK here!
   // TODO: smartly handle exceptions?
   Eigen::VectorXd ik_result_joint_angles(initial_positions.size());
   if (use_joint_limits_) {  
-    model_.solveIK(
+    robot_model.solveIK(
       initial_positions,
       ik_result_joint_angles,
       robot_model::EndEffectorPositionObjective(target_xyz),
       robot_model::JointLimitConstraint(min_positions_, max_positions_)
     );
   } else {
-    model_.solveIK(
+    robot_model.solveIK(
       initial_positions,
       ik_result_joint_angles,
       robot_model::EndEffectorPositionObjective(target_xyz)
@@ -63,17 +67,17 @@ Eigen::VectorXd ArmKinematics::solveIK(
   return ik_result_joint_angles;
 }
 
-// Return the joint angles to move to a given xyz location
-Eigen::VectorXd ArmKinematics::solveIK(
+Eigen::VectorXd KinematicsHelper::solveIK5Dof(
+  const robot_model::RobotModel& robot_model,
   const Eigen::VectorXd& initial_positions,
-  const Eigen::Vector3d& target_xyz, 
-  const Eigen::Vector3d& end_tip) const {
+  const Eigen::Vector3d& target_xyz,
+  const Eigen::Vector3d& end_tip) const
+{
   // NOTE: may want to customize the IK here!
-
   // TODO: smartly handle exceptions?
   Eigen::VectorXd ik_result_joint_angles(initial_positions.size());
   if (use_joint_limits_) {
-    model_.solveIK(
+    robot_model.solveIK(
       initial_positions,
       ik_result_joint_angles,
       robot_model::EndEffectorPositionObjective(target_xyz),
@@ -81,7 +85,7 @@ Eigen::VectorXd ArmKinematics::solveIK(
       robot_model::JointLimitConstraint(min_positions_, max_positions_)
     );
   } else {
-    model_.solveIK(
+    robot_model.solveIK(
       initial_positions,
       ik_result_joint_angles,
       robot_model::EndEffectorPositionObjective(target_xyz),
@@ -90,18 +94,18 @@ Eigen::VectorXd ArmKinematics::solveIK(
   }
   return ik_result_joint_angles;
 }
-
-// Return the joint angles to move to a given xyz location
-Eigen::VectorXd ArmKinematics::solveIKWithOrientation(
+  
+Eigen::VectorXd KinematicsHelper::solveIK6Dof(
+  const robot_model::RobotModel& robot_model,
   const Eigen::VectorXd& initial_positions,
-  const Eigen::Vector3d& target_xyz, 
-  const Eigen::Matrix3d& orientation) const {
+  const Eigen::Vector3d& target_xyz,
+  const Eigen::Matrix3d& orientation) const
+{
   // NOTE: may want to customize the IK here!
-
   // TODO: smartly handle exceptions?
   Eigen::VectorXd ik_result_joint_angles(initial_positions.size());
   if (use_joint_limits_) {
-    model_.solveIK(
+    robot_model.solveIK(
       initial_positions,
       ik_result_joint_angles,
       robot_model::EndEffectorPositionObjective(target_xyz),
@@ -109,7 +113,7 @@ Eigen::VectorXd ArmKinematics::solveIKWithOrientation(
       robot_model::JointLimitConstraint(min_positions_, max_positions_)
     );
   } else {
-    model_.solveIK(
+    robot_model.solveIK(
       initial_positions,
       ik_result_joint_angles,
       robot_model::EndEffectorPositionObjective(target_xyz),
@@ -118,29 +122,39 @@ Eigen::VectorXd ArmKinematics::solveIKWithOrientation(
   }
   return ik_result_joint_angles;
 }
-Eigen::Vector3d ArmKinematics::FK(const Eigen::VectorXd& positions) const {
+
+Eigen::Vector3d KinematicsHelper::FK3Dof(
+  const robot_model::RobotModel& robot_model,
+  const Eigen::VectorXd& positions) const
+{
   Eigen::Matrix4d transform;
-  model_.getEndEffector(positions, transform);
+  robot_model.getEndEffector(positions, transform);
   return Eigen::Vector3d(transform(0,3), transform(1,3), transform(2,3));
 }
-  
-void ArmKinematics::FKWithTip(const Eigen::VectorXd& positions, Eigen::Vector3d& xyz_out, Eigen::Vector3d& tip_axis) const {
+
+void KinematicsHelper::FK5Dof(
+  const robot_model::RobotModel& robot_model,
+  const Eigen::VectorXd& positions,
+  Eigen::Vector3d& xyz_out,
+  Eigen::Vector3d& tip_axis) const
+{
   Eigen::Matrix4d transform;
-  model_.getEndEffector(positions, transform);
+  robot_model.getEndEffector(positions, transform);
   xyz_out = Eigen::Vector3d(transform(0,3), transform(1,3), transform(2,3));
   tip_axis = Eigen::Vector3d(transform(0,2), transform(1,2), transform(2,2));
 }
-  
-void ArmKinematics::FKWithOrientation(const Eigen::VectorXd& positions, Eigen::Vector3d& xyz_out, Eigen::Matrix3d& orientation) const {
+
+void KinematicsHelper::FK6Dof(
+  const robot_model::RobotModel& robot_model,
+  const Eigen::VectorXd& positions,
+  Eigen::Vector3d& xyz_out,
+  Eigen::Matrix3d& orientation) const
+{
   Eigen::Matrix4d transform;
-  model_.getEndEffector(positions, transform);
+  robot_model.getEndEffector(positions, transform);
   xyz_out = Eigen::Vector3d(transform(0,3), transform(1,3), transform(2,3));
   orientation = transform.block<3,3>(0,0);
 }
 
-Eigen::VectorXd ArmKinematics::gravCompEfforts(const hebi::GroupFeedback& feedback) const {
-  return hebi::util::GravityCompensation::getEfforts(model_, masses_, feedback);
-}
-  
 } // namespace arm
 } // namespace hebi

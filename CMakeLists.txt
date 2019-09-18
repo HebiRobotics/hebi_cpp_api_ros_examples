@@ -119,11 +119,11 @@ add_executable(diff_drive_node nodes/diff_drive_node.cpp robot/diff_drive.cpp)
 add_dependencies(diff_drive_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 
-add_executable(teach_repeat_node nodes/teach_repeat_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp util/path.cpp util/waypoint.cpp)
+add_executable(teach_repeat_node nodes/teach_repeat_node.cpp robot/arm.cpp robot/kinematics_helper.cpp util/path.cpp util/waypoint.cpp)
 add_dependencies(teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(teach_repeat_node ${catkin_LIBRARIES} )
 
-add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
+add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
 add_dependencies(arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
 
@@ -131,7 +131,7 @@ add_executable(gripper_node nodes/gripper_node.cpp)
 add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )
 
-add_executable(moveit_arm_node nodes/moveit_arm_node.cpp robot/arm.cpp robot/arm_kinematics.cpp robot/arm_trajectory.cpp)
+add_executable(moveit_arm_node nodes/moveit_arm_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
 add_dependencies(moveit_arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(moveit_arm_node ${catkin_LIBRARIES} )
 

@@ -52,13 +52,13 @@ static int tryGetNameIndex(const std::string& name, const std::vector<NamedItem>
 void TeachRepeatNode::setCompliantMode(std_msgs::Bool msg) {
   if (msg.data) {
     ROS_INFO("Pausing active command (entering grav comp mode)");
-    arm_.getTrajectory().pauseActiveCommand();
+    arm_.cancelGoal();
   } else {
     ROS_INFO("Resuming active command"); 
     auto t = ::ros::Time::now().toSec();
-    const auto& last_fbk = arm_.getLastFeedback();
-    arm_.getTrajectory().resumeActiveCommand(t, last_fbk);
-    target_xyz_ = arm_.getKinematics().FK(last_fbk.getPosition());
+    auto last_position = arm_.lastFeedback().getPosition();
+    arm_.setGoal({last_position});
+    target_xyz_ = arm_.FK3Dof(last_position);
   }
 }
 
@@ -68,11 +68,11 @@ void TeachRepeatNode::offsetWaypointPlayback(hebi_cpp_api_examples::OffsetPlayba
     return;
 
   // The last commanded position:
-  Eigen::VectorXd position_cmd = arm_.getLastFeedback().getPositionCommand();
+  Eigen::VectorXd position_cmd = arm_.lastFeedback().getPositionCommand();
 
   // Initialize target from feedback as necessary
   if (!isTargetInitialized())
-    target_xyz_ = arm_.getKinematics().FK(position_cmd);
+    target_xyz_ = arm_.FK3Dof(position_cmd);
 
   // Update stored target position:
   target_xyz_.x() += msg.offset.x;
@@ -85,18 +85,15 @@ void TeachRepeatNode::offsetWaypointPlayback(hebi_cpp_api_examples::OffsetPlayba
   waypoint_playback_offset_.z() += msg.offset.z;
 
   // Plan to this point from the last commanded position for smooth motion
-  position_cmd = arm_.getKinematics().solveIK(position_cmd, target_xyz_);
+  position_cmd = arm_.solveIK3Dof(position_cmd, target_xyz_);
 
   // Replan:
-  arm_.getTrajectory().replan(
-    ::ros::Time::now().toSec(),
-    arm_.getLastFeedback(),
-    position_cmd);
+  arm_.setGoal({position_cmd});
 }
 
 void TeachRepeatNode::saveWaypoint(hebi_cpp_api_examples::SaveWaypoint msg) {
   // Get waypoint
-  auto last_fbk_pos = arm_.getLastFeedback().getPosition();
+  auto last_fbk_pos = arm_.lastFeedback().getPosition();
 
   // Name point from message if name is given; default to number of waypoint
   std::string waypoint_name = std::to_string(waypoints_.size() + 1);
@@ -199,28 +196,26 @@ void TeachRepeatNode::startPlayback(hebi_cpp_api_examples::Playback msg) {
 
 bool TeachRepeatNode::update(double t) {
   if (constructing_path_ && t >= last_path_point_time_ + path_dt_) {
-    currently_constructing_path_.push_back(arm_.getLastFeedback().getPosition());
+    currently_constructing_path_.push_back(arm_.lastFeedback().getPosition());
     last_path_point_time_ = t;
   }
 }
 
 Eigen::VectorXd TeachRepeatNode::offsetJoints(const Eigen::VectorXd& joint_angles, const Eigen::Vector3d& xyz_offset) const {
-  const auto& kin = arm_.getKinematics();
-
   // Do FK to get current point, then offset and do IK:
   Eigen::Vector3d xyz;
   Eigen::Matrix3d orientation;
-  kin.FKWithOrientation(joint_angles, xyz, orientation);
+  arm_.FK6Dof(joint_angles, xyz, orientation);
 
   xyz += xyz_offset;
-  return kin.solveIKWithOrientation(joint_angles, xyz, orientation);
+  return arm_.solveIK6Dof(joint_angles, xyz, orientation);
 }
 
 void TeachRepeatNode::playPath(size_t path_index) {
   const auto& this_path = paths_[path_index];
 
   auto num_waypoints = this_path.size();
-  auto num_joints = arm_.getGroup()->size();
+  auto num_joints = arm_.size();
   Eigen::MatrixXd wp_matrix(num_joints, num_waypoints);
   // Set the time based on the recorded times
   Eigen::VectorXd times(num_waypoints);
@@ -234,11 +229,11 @@ void TeachRepeatNode::playPath(size_t path_index) {
   }
   
   // Update stored target position, based on final joint angles.
-  target_xyz_ = arm_.getKinematics().FK(wp_matrix.rightCols<1>());
+  target_xyz_ = arm_.FK3Dof(wp_matrix.rightCols<1>());
   waypoint_playback_offset_ = Eigen::Vector3d::Zero();
 
   auto t = ::ros::Time::now().toSec();
-  arm_.getTrajectory().replan(t, arm_.getLastFeedback(), wp_matrix, times);
+  arm_.setGoal({times, wp_matrix});
   ROS_INFO_STREAM("Start path playback through " << num_waypoints << " waypoints");
 }
 
@@ -248,8 +243,8 @@ void TeachRepeatNode::goToWaypoint(const Eigen::VectorXd& joint_angles) {
   auto joints = joint_angles;
   joints = offsetJoints(joints, waypoint_playback_offset_); 
 
-  target_xyz_ = arm_.getKinematics().FK(joints);
-  arm_.getTrajectory().replan(t, arm_.getLastFeedback(), joints);
+  target_xyz_ = arm_.FK3Dof(joints);
+  arm_.setGoal({joints});
   ROS_INFO_STREAM("Moving to waypoint");
 }
 
@@ -315,17 +310,30 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize arm ///////////////////
 
-  // Load robot model
-  auto model = hebi::robot_model::RobotModel::loadHRDF(ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file);
-  hebi::arm::ArmKinematics arm_kinematics(*model);
+  // Create arm
+  hebi::arm::Arm::Params params;
+  params.families_ = families;
+  params.names_ = names;
+  params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
+
+  auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  if (!arm) {
+    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+    return -1;
+  }
+  
+  // Load the appropriate gains file
+  if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
+    ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
+  }
 
   // Get the home position, defaulting to (nearly) zero
-  Eigen::VectorXd home_position(model->getDoFCount());
+  Eigen::VectorXd home_position(arm->size());
   if (home_position_vector.empty()) {
     for (size_t i = 0; i < home_position.size(); ++i) {
       home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
     }
-  } else if (home_position_vector.size() != model->getDoFCount()) {
+  } else if (home_position_vector.size() != arm->size()) {
     ROS_ERROR("'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
     return 1;
   } else {
@@ -333,37 +341,6 @@ int main(int argc, char ** argv) {
       home_position[i] = home_position_vector[i];
     }
   }
-
-  // Create arm and plan initial trajectory
-  auto arm = hebi::arm::Arm::createArm(
-    families,                  // Family
-    names,                     // Names
-    home_position,             // Home position
-    arm_kinematics,            // Kinematics object
-    ros::Time::now().toSec()); // Starting time (for trajectory)  
-
-  if (!arm) {
-    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
-    return 1;
-  }
-
-  // Load the appropriate gains file
-  {
-    hebi::GroupCommand gains_cmd(arm -> size());
-    if (!gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file))
-      ROS_ERROR("Could not load arm gains file!");
-    else {
-      bool success = false;
-      for (size_t i = 0; i < 5; ++i) {
-        success = arm->getGroup()->sendCommandWithAcknowledgement(gains_cmd);
-        if (success)
-          break;
-      }
-      if (!success)
-        ROS_ERROR("Could not set arm gains!");
-    }
-  }
-
 
   /////////////////// Initialize ROS interface ///////////////////
    
@@ -427,13 +404,21 @@ int main(int argc, char ** argv) {
 
   /////////////////// Main Loop ///////////////////
 
-  // Main command loop
+  // We update with a current timestamp so the "setGoal" function
+  // is planning from the correct time for a smooth start
+  auto t = ros::Time::now().toSec();
+  arm->update(t);
+  teach_repeat_node.update(t);
+  arm->setGoal({home_position});
+
   while (ros::ok()) {
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
-    auto t = ros::Time::now().toSec();
+    t = ros::Time::now().toSec();
     if (!arm->update(t))
       ROS_WARN("Error Getting Feedback -- Check Connection");
+    else if (!arm->send())
+      ROS_WARN("Error Sending Commands -- Check Connection");
     teach_repeat_node.update(t);
 
     // Call any pending callbacks (note -- this may update our planned motion)
