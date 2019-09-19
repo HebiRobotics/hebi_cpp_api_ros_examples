@@ -11,7 +11,7 @@
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
 
-#include "robot/diff_drive.hpp"
+#include "src/util/diff_drive.hpp"
 
 #include <ros/console.h>
 #include <ros/package.h>
@@ -146,7 +146,7 @@ int main(int argc, char ** argv) {
   auto base = hebi::DiffDrive::create(
     families, // Famil(ies)
     names, // Names
-    ::ros::package::getPath("hebi_cpp_api_examples") + "/gains/diff_drive_gains.xml", // Gains file
+    ::ros::package::getPath("hebi_cpp_api_examples") + "/config/gains/diff_drive_gains.xml", // Gains file
     ros::Time::now().toSec(), // Starting time (for trajectory)
     error_out);
   if (!base) {

@@ -89,52 +89,73 @@ install(FILES
   config/a-2085-04_params.yaml
   config/a-2085-05_params.yaml
   config/a-2085-06_params.yaml
+
+  config/hrdf/3_dof_arm.hrdf
+  config/hrdf/a-2084-01.hrdf
+  config/hrdf/a-2085-04.hrdf
+  config/hrdf/a-2085-05.hrdf
+  config/hrdf/a-2085-06.hrdf
+  config/hrdf/a-2085-06-parallel-gripper.hrdf
+
+  config/gains/3_dof_arm_gains.xml
+  config/gains/a-2084-01_gains.xml
+  config/gains/a-2085-04_gains.xml
+  config/gains/a-2085-05_gains.xml
+  config/gains/a-2085-06_gains.xml
+  config/gains/omni_base_gains.xml
+  config/gains/diff_drive_gains.xml
+  config/gains/gripper_spool_gains.xml
+
   launch/arm_node.launch
-  launch/move_it_node.launch
+  launch/arm_move_it_node.launch
+  launch/arm_teach_repeat_6_dof.launcha
+
   launch/diff_drive.launch
   launch/omni_base.launch
   launch/omni_base_control.launch
-  launch/teach_repeat_6_dof.launch
-  kits/rosie/rosie_teach_repeat.launch
 
-  gains/omni_base_gains.xml
+  launch/rosie_teach_repeat.launch
 
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 ## I don't think this is the _right_ way to do this, but it works...
-file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/gains/omni_base_gains.xml
+file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/config/gains/omni_base_gains.xml
       DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
 
-add_executable(omni_base_node nodes/omni_base_node.cpp robot/omni_base.cpp util/odom_publisher.cpp)
+# Different nodes for the arm kits
+
+add_executable(omni_base_node src/kits/base/omni_base_node.cpp src/util/omni_base.cpp src/util/odom_publisher.cpp)
 add_dependencies(omni_base_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 
-add_executable(omni_base_controller_node nodes/omni_base_controller_node.cpp util/mobile_io.cpp)
+add_executable(omni_base_controller_node src/kits/base/omni_base_controller_node.cpp src/util/mobile_io.cpp)
 add_dependencies(omni_base_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_controller_node ${catkin_LIBRARIES} )
 
-add_executable(rosie_teach_repeat_controller_node kits/rosie/teach_repeat_controller_node.cpp util/mobile_io.cpp)
+add_executable(rosie_teach_repeat_controller_node src/kits/rosie/teach_repeat_controller_node.cpp src/util/mobile_io.cpp)
 add_dependencies(rosie_teach_repeat_controller_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rosie_teach_repeat_controller_node ${catkin_LIBRARIES} )
 
-add_executable(diff_drive_node nodes/diff_drive_node.cpp robot/diff_drive.cpp)
+add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp src/util/diff_drive.cpp)
 add_dependencies(diff_drive_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 
-add_executable(teach_repeat_node nodes/teach_repeat_node.cpp robot/arm.cpp robot/kinematics_helper.cpp util/path.cpp util/waypoint.cpp)
-add_dependencies(teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-target_link_libraries(teach_repeat_node ${catkin_LIBRARIES} )
+# Different nodes for the arm kits
 
-add_executable(arm_node nodes/arm_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
+add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp src/util/path.cpp src/util/waypoint.cpp)
+add_dependencies(arm_teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_teach_repeat_node ${catkin_LIBRARIES} )
+
+add_executable(arm_node src/kits/arm/arm_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
 add_dependencies(arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
 
-add_executable(gripper_node nodes/gripper_node.cpp)
+add_executable(arm_moveit_node src/kits/arm/arm_moveit_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
+add_dependencies(arm_moveit_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_moveit_node ${catkin_LIBRARIES} )
+
+add_executable(gripper_node src/kits/arm/gripper_node.cpp)
 add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )
-
-add_executable(moveit_arm_node nodes/moveit_arm_node.cpp robot/arm.cpp robot/kinematics_helper.cpp)
-add_dependencies(moveit_arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-target_link_libraries(moveit_arm_node ${catkin_LIBRARIES} )
 

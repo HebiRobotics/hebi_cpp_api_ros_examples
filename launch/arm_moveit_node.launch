@@ -6,7 +6,7 @@
 
   The content of this is largely taken from the
   standard MoveIt launch files, but is configured to
-  use the `moveit_arm_node` in the `hebi_cpp_api_examples`
+  use the `arm_moveit_node` in the `hebi_cpp_api_examples`
   package to move a physical arm.
 
   You should specify `arm_type` as a launch file parameter
@@ -35,7 +35,7 @@
   <!-- Parameters for the module names, gains, hrdf, etc -->
   <rosparam file="$(find hebi_cpp_api_examples)/config/$(arg arm_type)_params.yaml" command="load" />
 
-  <node pkg="hebi_cpp_api_examples" type="moveit_arm_node" name="moveit_arm_node" output="screen"/>
+  <node pkg="hebi_cpp_api_examples" type="arm_moveit_node" name="arm_moveit_node" output="screen"/>
 
   <!-- Start gripper node as appropriate -->
   <group if="$(eval gripper_type == 'parallel')">

@@ -1,6 +1,6 @@
 #include "arm.hpp"
 #include "hebi_cpp_api/lookup.hpp"
-#include "util/grav_comp.hpp" // TODO: move to / use from hebi C++ api!
+#include "src/util/grav_comp.hpp" // TODO: move to / use from hebi C++ api!
 
 #include <cassert>
 

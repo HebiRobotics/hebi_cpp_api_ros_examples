@@ -20,7 +20,7 @@ Path::Path(const std::string& name, const std::vector<double>& points, size_t nu
 void Path::write(const std::string& filename) {
   std::ofstream file;
   file.open(filename, std::ofstream::out); 
-  file << "paths/" << name_ << ": [\n";
+  file << "data/paths/" << name_ << ": [\n";
   for (const auto& wp : waypoints_) {
     for (int i = 0; i < wp.size(); ++i)
       file << wp(i) << ",";

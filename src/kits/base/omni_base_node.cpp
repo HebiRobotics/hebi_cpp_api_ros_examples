@@ -11,9 +11,9 @@
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
 
-#include "robot/omni_base.hpp"
+#include "src/util/omni_base.hpp"
 
-#include "util/odom_publisher.hpp"
+#include "src/util/odom_publisher.hpp"
 
 #include <ros/console.h>
 #include <ros/package.h>
@@ -170,7 +170,7 @@ int main(int argc, char ** argv) {
   auto base = hebi::OmniBase::create(
     families, // Famil(ies)
     names, // Names
-    ::ros::package::getPath("hebi_cpp_api_examples") + "/gains/omni_base_gains.xml", // Gains file
+    ::ros::package::getPath("hebi_cpp_api_examples") + "/config/gains/omni_base_gains.xml", // Gains file
     ros::Time::now().toSec(), // Starting time (for trajectory)
     error_out);
   if (!base) {
