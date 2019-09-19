@@ -13,3 +13,5 @@ This package provides a colleciton of nodes which can be used as standalone comp
 For full documentation, see the package documentation on the ROS wiki:
 
 http://wiki.ros.org/hebi_cpp_api_examples
+
+If you want to jump straight into the code, check out the `src` folder.
