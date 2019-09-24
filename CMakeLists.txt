@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   actionlib_msgs
   std_msgs
+  sensor_msgs
   nav_msgs
   geometry_msgs
   tf
@@ -47,6 +48,7 @@ generate_messages(
   geometry_msgs
   trajectory_msgs
   std_msgs
+  sensor_msgs
   nav_msgs
   actionlib_msgs
   control_msgs
@@ -158,4 +160,10 @@ target_link_libraries(arm_moveit_node ${catkin_LIBRARIES} )
 add_executable(gripper_node src/kits/arm/gripper_node.cpp)
 add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )
+
+# Nodes for HEBI-Clearpath Jackal Integration
+
+add_executable(gripper_joystick_node src/integrations/clearpath_jackal/gripper_joystick_node.cpp)
+add_dependencies(gripper_joystick_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gripper_joystick_node ${catkin_LIBRARIES} )
 
