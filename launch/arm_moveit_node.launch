@@ -39,8 +39,8 @@
 
   <!-- Start gripper node as appropriate -->
   <group if="$(eval gripper_type == 'parallel')">
-    <!-- TODO -->
-    <!-- <node pkg="hebi_cpp_api_examples" type="moveit_gripper_node" name="moveit_gripper_node" output="screen"/> -->
+    <rosparam file="$(find hebi_cpp_api_examples)/config/$(arg gripper_type)-gripper_params.yaml" command="load" />
+    <node pkg="hebi_cpp_api_examples" type="gripper_moveit_node" name="moveit_gripper_node" output="screen" required="true"/>
   </group>
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
