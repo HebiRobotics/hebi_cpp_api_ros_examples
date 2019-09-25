@@ -53,10 +53,10 @@ float spoolToMoveItVel(float spool_vel)
 }
 
 // Scales the effort feedback (inverse of velocity scale)
-float spoolToMoveItVel(float spool_eff)
+float spoolToMoveItEff(float spool_eff)
 {
   // Scale to account for non-ideal position transfer source
-  auto slip_scale = spool_vel / 0.9 * (0.66 - 0.1);
+  auto slip_scale = spool_eff / 0.9 * (0.66 - 0.1);
   return -slip_scale * 0.9 / 1.1675;
 }
 
