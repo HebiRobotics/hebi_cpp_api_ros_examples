@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   actionlib_msgs
   std_msgs
+  sensor_msgs
   nav_msgs
   geometry_msgs
   tf
@@ -47,6 +48,7 @@ generate_messages(
   geometry_msgs
   trajectory_msgs
   std_msgs
+  sensor_msgs
   nav_msgs
   actionlib_msgs
   control_msgs
@@ -107,14 +109,19 @@ install(FILES
   config/gains/gripper_spool_gains.xml
 
   launch/arm_node.launch
-  launch/arm_move_it_node.launch
-  launch/arm_teach_repeat_6_dof.launcha
+  launch/arm_moveit_node.launch
+  launch/arm_teach_repeat_6_dof.launch
 
-  launch/diff_drive.launch
-  launch/omni_base.launch
+  launch/diff_drive_node.launch
+  launch/omni_base_node.launch
   launch/omni_base_control.launch
 
   launch/rosie_teach_repeat.launch
+
+  src/integrations/clearpath_jackal/jackal_arm_teleop.py
+  src/integrations/clearpath_jackal/jackal_arm.launch
+  src/integrations/clearpath_jackal/jackal_base_station.launch
+  src/integrations/clearpath_jackal/rviz_config.rviz
 
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
@@ -159,3 +166,6 @@ add_executable(gripper_node src/kits/arm/gripper_node.cpp)
 add_dependencies(gripper_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )
 
+add_executable(gripper_moveit_node src/kits/arm/gripper_moveit_node.cpp)
+add_dependencies(gripper_moveit_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gripper_moveit_node ${catkin_LIBRARIES} )
