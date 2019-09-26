@@ -109,14 +109,19 @@ install(FILES
   config/gains/gripper_spool_gains.xml
 
   launch/arm_node.launch
-  launch/arm_move_it_node.launch
-  launch/arm_teach_repeat_6_dof.launcha
+  launch/arm_moveit_node.launch
+  launch/arm_teach_repeat_6_dof.launch
 
-  launch/diff_drive.launch
-  launch/omni_base.launch
+  launch/diff_drive_node.launch
+  launch/omni_base_node.launch
   launch/omni_base_control.launch
 
   launch/rosie_teach_repeat.launch
+
+  src/integrations/clearpath_jackal/jackal_arm_teleop.py
+  src/integrations/clearpath_jackal/jackal_arm.launch
+  src/integrations/clearpath_jackal/jackal_base_station.launch
+  src/integrations/clearpath_jackal/rviz_config.rviz
 
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
