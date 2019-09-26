@@ -44,7 +44,7 @@
   <node ns="hebi" name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
 
   <!-- Publish static transforms to "attach" the HEBI arm to the Jackal -->
-  <node name="jackal_to_hebi_arm" pkg="tf" type="static_transform_publisher" args="0 0 0 1.570796 0 0 /rear_mount world 100"/>
+  <node name="jackal_to_hebi_arm" pkg="tf" type="static_transform_publisher" args="-0.12 0 0.0424 1.570796 0 0 /front_mount world 100"/>
 
   <!-- Run the main MoveIt! executable -->
   <include ns="hebi" file="$(eval find('hebi_' + moveit_arm_type + '_moveit_config') + '/launch/move_group.launch')">
