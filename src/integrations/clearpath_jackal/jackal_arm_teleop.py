@@ -25,7 +25,6 @@ RIGHT_BUTTON = 12
 ABOVE_PICK_BUTTON = 13
 PICK_BUTTON = 3
 DOOR_BUTTON = 1
-SHUTDOWN_BUTTON = 2
 
 # Gripper button
 GRIPPER_BUTTON = 0
@@ -55,8 +54,6 @@ def joy_callback(data):
         demo.go_to(PICK)
     elif (data.buttons[ABOVE_PICK_BUTTON] == 1 and last_buttons[ABOVE_PICK_BUTTON] != 1):
         demo.go_to(ABOVE_PICK)
-    elif (data.buttons[SHUTDOWN_BUTTON] == 1 and last_buttons[SHUTDOWN_BUTTON] != 1):
-        demo.shutdown = True
     elif (data.buttons[GRIPPER_BUTTON] == 1 and last_buttons[GRIPPER_BUTTON] != 1):
         demo.change_gripper(gripper_state)
         gripper_state = not gripper_state
@@ -64,14 +61,13 @@ def joy_callback(data):
 
 class HebiClearpathDemo(object):
     def __init__(self):
-        self.shutdown = False
         moveit_commander.roscpp_initialize(sys.argv)
 
         rospy.init_node('hebi_clearpath_demo', anonymous=True)
         rospy.Subscriber('bluetooth_teleop/joy', Joy, joy_callback)
 
         success = False
-        while (not success and self.shutdown == False and not rospy.is_shutdown()):
+        while (not success and not rospy.is_shutdown()):
             try: 
                 self.move_group = moveit_commander.MoveGroupCommander("hebi_arm", "/hebi/robot_description", ns="hebi")
                 success = True
@@ -79,7 +75,7 @@ class HebiClearpathDemo(object):
                 print "Could not connect to move group action server for arm; trying again"
 
         success = False
-        while (not success and self.shutdown == False and not rospy.is_shutdown()):
+        while (not success and not rospy.is_shutdown()):
             try: 
                 self.gripper_move_group = moveit_commander.MoveGroupCommander("hand", "/hebi/robot_description", ns="hebi")
                 success = True
@@ -106,7 +102,7 @@ def main():
         print "Starting HEBI Clearpath Demo"
         demo = HebiClearpathDemo()
 
-        while(demo.shutdown == False and not rospy.is_shutdown()):
+        while(not rospy.is_shutdown()):
             pass
 
     except rospy.ROSInterruptException:
