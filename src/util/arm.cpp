@@ -204,7 +204,7 @@ double Arm::goalProgress() const {
   if (trajectory_) {
     double t_traj = last_time_ - trajectory_start_time_;
     t_traj = std::min(t_traj, trajectory_->getDuration());
-    return t_traj / 1.0;
+    return t_traj / trajectory_->getDuration();
   }
   // No current goal!
   return 0.0;
