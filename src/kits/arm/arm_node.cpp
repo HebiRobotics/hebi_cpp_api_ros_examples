@@ -10,7 +10,7 @@
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
 #include <hebi_cpp_api_examples/ArmMotionAction.h>
-
+#include <hebi_cpp_api_examples/SetIKSeed.h>
 
 #include "hebi_cpp_api/group_command.hpp"
 
@@ -22,7 +22,26 @@ namespace ros {
 
 class ArmNode {
 public:
-  ArmNode(arm::Arm& arm, const Eigen::VectorXd& home_position) : arm_(arm), home_position_(home_position) { }
+  ArmNode(arm::Arm& arm, const Eigen::VectorXd& home_position, const std::vector<double>& ik_seed) : arm_(arm), home_position_(home_position) {
+    if (ik_seed.size() > 0) {
+      ik_seed_.resize(ik_seed.size());
+      for (size_t i = 0; i < ik_seed.size(); ++i) {
+        ik_seed_[i] = ik_seed[i];
+        use_ik_seed_ = true;
+      }
+    } else {
+        use_ik_seed_ = false;
+    }
+  }
+
+  bool setIKSeed(hebi_cpp_api_examples::SetIKSeed::Request& req, hebi_cpp_api_examples::SetIKSeed::Response& res) {
+    ik_seed_.resize(req.seed.size());
+    for (size_t i = 0; i < req.seed.size(); ++i) {
+      ik_seed_[i] = req.seed[i];
+      use_ik_seed_ = true;
+    }
+    return true;
+  }
 
   // Callback for trajectories with joint angle waypoints
   void updateJointWaypoints(trajectory_msgs::JointTrajectory joint_trajectory) {
@@ -141,13 +160,22 @@ public:
   }
 
   void startArmMotion(const hebi_cpp_api_examples::ArmMotionGoalConstPtr& goal) {
-    ROS_INFO("Executing arm motion action");
+    auto last_position = arm_.lastFeedback().getPosition();
+    //ROS_INFO("Executing arm motion action");
+    ROS_INFO_STREAM("Starting From Joint Position: " << last_position[0] << " | "
+                                                     << last_position[1] << " | "
+                                                     << last_position[2] << " | "
+                                                     << last_position[3] << " | "
+                                                     << last_position[4] << " | "
+                                                     << last_position[5]);
 
     // Replan a smooth joint trajectory from the current location through a
     // series of cartesian waypoints.
     // TODO: use a single struct instead of 6 single vectors of the same length;
     // but how do we do hierarchial actions?
     size_t num_waypoints = goal->x.size();
+
+    ROS_INFO_STREAM("There are " << num_waypoints << " waypoints");
 
     Eigen::Matrix3Xd xyz_positions(3, num_waypoints);
     Eigen::Matrix3Xd tip_directions(3, num_waypoints);
@@ -245,6 +273,9 @@ private:
 
   Eigen::VectorXd home_position_;
 
+  Eigen::VectorXd ik_seed_;
+  bool use_ik_seed_;
+
   actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction>* action_server_ {nullptr};
 
   // Helper function that indicates whether or not was have received a
@@ -298,12 +329,28 @@ private:
     // (We use the last position command for smoother motion)
     Eigen::VectorXd last_position = arm_.lastFeedback().getPositionCommand();
 
+    if(use_ik_seed_) {
+      last_position = ik_seed_;
+    }
+
     // For each waypoint, find the joint angles to move to it, starting from the last
     // waypoint, and save into the position vector.
     if (end_tip_directions) {
       // If we are given tip directions, add these too...
+      //Eigen::VectorXd elbow_up(6); elbow_up << 0, 3.14 / 4.0, 3.14 / 2.0, 3.14 / 4.0, -3.14, 3.14 / 2.0;
       for (size_t i = 0; i < num_waypoints; ++i) {
         last_position = arm_.solveIK5Dof(last_position, xyz_positions.col(i), end_tip_directions->col(i));
+        ROS_INFO_STREAM("IK Solution: " << last_position[0] << " | "
+                                        << last_position[1] << " | "
+                                        << last_position[2] << " | "
+                                        << last_position[3] << " | "
+                                        << last_position[4] << " | "
+                                        << last_position[5]);
+        auto fk_check = arm_.FK3Dof(last_position);
+        ROS_INFO_STREAM("FK computed pose:" << fk_check[0] << ", " << fk_check[1] << ", " << fk_check[2]);
+        ROS_INFO_STREAM("target pose:" << xyz_positions.col(i)[0] << ", " << xyz_positions.col(i)[1] << ", " << xyz_positions.col(i)[2]);
+        //auto mag_diff = (last_position - fk_check).norm();
+        //ROS_INFO_STREAM("Distance between commanded and computed end effector pose: " << mag_diff);
         positions.col(i) = last_position; 
       }
     } else {
@@ -423,7 +470,13 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize ROS interface ///////////////////
    
-  hebi::ros::ArmNode arm_node(*arm, home_position);
+  std::vector<double> ik_seed;
+  if (node.hasParam("ik_seed")) {
+    node.getParam("ik_seed", ik_seed);
+  } else {
+    ROS_WARN("Param ik_seed not set, arm may exhibit erratic behavior");
+  }
+  hebi::ros::ArmNode arm_node(*arm, home_position, ik_seed);
 
   // Action server for arm motions
   actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction> arm_motion_action(
@@ -454,6 +507,9 @@ int main(int argc, char ** argv) {
   // a "grav comp only" mode.
   ros::Subscriber compliant_mode_subscriber =
     node.subscribe<std_msgs::Bool>("compliant_mode", 50, &hebi::ros::ArmNode::setCompliantMode, &arm_node);
+
+  ros::ServiceServer ik_seed_server =
+    node.advertiseService("set_ik_seed", &hebi::ros::ArmNode::setIKSeed, &arm_node);
 
   /////////////////// Main Loop ///////////////////
 

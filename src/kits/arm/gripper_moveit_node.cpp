@@ -181,44 +181,44 @@ int main(int argc, char ** argv) {
 
   // Get parameters for name/family of modules; default to standard values:
   std::string family;
-  if (node.hasParam("gripper_family") && node.getParam("gripper_family", family)) {
-    ROS_INFO("Found and successfully read 'gripper_family' parameter");
+  if (node.hasParam("family") && node.getParam("family", family)) {
+    ROS_INFO("Found and successfully read 'family' parameter");
   } else {
-    ROS_WARN("Could not find/read 'gripper_family' parameter; defaulting to 'HEBI'");
+    ROS_WARN("Could not find/read 'family' parameter; defaulting to 'HEBI'");
     family = "HEBI";
   }
 
   std::string name;
-  if (node.hasParam("gripper_name") && node.getParam("gripper_name", name)) {
-    ROS_INFO("Found and successfully read 'gripper_name' parameter");
+  if (node.hasParam("name") && node.getParam("name", name)) {
+    ROS_INFO("Found and successfully read 'name' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gripper_name' parameter; aborting!");
+    ROS_ERROR("Could not find/read required 'name' parameter; aborting!");
     return -1;
   }
 
   std::string moveit_joint;
-  if (node.hasParam("gripper_moveit_joint") &&
-      node.getParam("gripper_moveit_joint", moveit_joint) &&
+  if (node.hasParam("moveit_joint") &&
+      node.getParam("moveit_joint", moveit_joint) &&
       !moveit_joint.empty()) {
-    ROS_INFO("Found and successfully read 'gripper_moveit_joint' parameter");
+    ROS_INFO("Found and successfully read 'moveit_joint' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gripper_moveit_joint' parameter or parameter was an empty string; aborting!");
+    ROS_ERROR("Could not find/read required 'moveit_joint' parameter or parameter was an empty string; aborting!");
     return -1;
   }
 
   // Read the package + path for the gains file
   std::string gains_package;
-  if (node.hasParam("gripper_gains_package") && node.getParam("gripper_gains_package", gains_package)) {
-    ROS_INFO("Found and successfully read 'gripper_gains_package' parameter");
+  if (node.hasParam("gains_package") && node.getParam("gains_package", gains_package)) {
+    ROS_INFO("Found and successfully read 'gains_package' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gripper_gains_package' parameter; aborting!");
+    ROS_ERROR("Could not find/read required 'gains_package' parameter; aborting!");
     return -1;
   }
   std::string gains_file;
-  if (node.hasParam("gripper_gains_file") && node.getParam("gripper_gains_file", gains_file)) {
-    ROS_INFO("Found and successfully read 'gripper_gains_file' parameter");
+  if (node.hasParam("gains_file") && node.getParam("gains_file", gains_file)) {
+    ROS_INFO("Found and successfully read 'gains_file' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gripper_gains_file' parameter; aborting!");
+    ROS_ERROR("Could not find/read required 'gains_file' parameter; aborting!");
     return -1;
   }
 

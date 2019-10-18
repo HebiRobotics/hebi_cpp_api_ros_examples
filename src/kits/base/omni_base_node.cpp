@@ -137,7 +137,7 @@ int main(int argc, char ** argv) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
     ROS_INFO("Could not find/read 'families' parameter; defaulting to 'HEBI'");
-    families = {"HEBI"};
+    families = {"Rosie"};
   }
 
   std::vector<std::string> names;
@@ -145,7 +145,7 @@ int main(int argc, char ** argv) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
     ROS_INFO("Could not find/read 'names' parameter; defaulting to 'Wheel1', 'Wheel2', and 'Wheel3' ");
-    names = {"Wheel1", "Wheel2", "Wheel3"};
+    names = {"_Wheel1", "_Wheel2", "_Wheel3"};
   }
 
   // Topics for publishing calculated odometry
