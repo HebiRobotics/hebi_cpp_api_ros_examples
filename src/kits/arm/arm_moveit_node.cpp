@@ -21,6 +21,7 @@ class MoveItArmNode {
 public:
   MoveItArmNode(arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> moveit_joints)
     : arm_(arm),
+      action_server_(node, "hebi_arm_controller/follow_joint_trajectory", boost::bind(&MoveItArmNode::followJointTrajectory, this, _1), false),
       joint_state_publisher_(node.advertise<sensor_msgs::JointState>("joint_states", 100)) {
 
     // The "moveit_joints" here are loaded from a rosparam, and should match those in the
@@ -31,6 +32,7 @@ public:
     joint_state_message_.velocity.resize(num_modules, 0 );
     joint_state_message_.effort.resize(num_modules, 0 );
 
+    action_server_.start();
   }
 
   void followJointTrajectory(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal) {
@@ -52,7 +54,7 @@ public:
       auto location = std::find(dst_names.begin(), dst_names.end(), src_names[i]);
       if (location == dst_names.end())
       {
-        action_server_->setAborted();
+        action_server_.setAborted();
         return;
       }
       ros_to_hebi[i] = location - dst_names.begin();
@@ -98,15 +100,15 @@ public:
     ROS_INFO("HEBI MoveIt Arm Node executing trajectory");
 
     while (true) {
-      if (action_server_->isPreemptRequested() || !::ros::ok()) {
+      if (action_server_.isPreemptRequested() || !::ros::ok()) {
         ROS_INFO("Follow joint trajectory action was preempted");
         // Note -- the `followJointTrajectory` function will not be called until the
         // action server has been preempted here:
-        action_server_->setPreempted();
+        action_server_.setPreempted();
         return;
       }
 
-      if (!action_server_->isActive() || !::ros::ok()) {
+      if (!action_server_.isActive() || !::ros::ok()) {
         ROS_INFO("Follow joint trajectory was cancelled");
         return;
       }
@@ -117,7 +119,7 @@ public:
       // TODO: we could fill in the action server feedback with desired, actual, and
       // error values if necessary. For now, we rely on the joint_states message to
       // accomplish this.
-      // action_server_->publishFeedback(feedback);
+      // action_server_.publishFeedback(feedback);
  
       if (arm_.atGoal()) {
         break;
@@ -132,11 +134,7 @@ public:
 
     // publish when the arm is done with a motion
     ROS_INFO("Completed follow joint trajectory action");
-    action_server_->setSucceeded();
-  }
-
-  void setActionServer(actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction>& action_server) {
-    action_server_ = &action_server;
+    action_server_.setSucceeded();
   }
 
   // The "heartbeat" of the program -- sends out messages and updates feedback from
@@ -173,7 +171,7 @@ public:
 private:
   arm::Arm& arm_;
 
-  actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction>* action_server_ {nullptr};
+  actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> action_server_;
 
   ::ros::Publisher joint_state_publisher_;
 
@@ -267,6 +265,15 @@ int main(int argc, char ** argv) {
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
 
   auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  for (int num_tries = 0; num_tries < 3; num_tries++) {
+    arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+    if (arm) {
+      break;
+    }
+    ROS_WARN("Could not initialize arm, trying again...");
+    ros::Duration(1.0).sleep();
+  }
+
   if (!arm) {
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
@@ -295,13 +302,6 @@ int main(int argc, char ** argv) {
   /////////////////// Initialize ROS interface ///////////////////
   
   hebi::ros::MoveItArmNode arm_node(*arm, node, moveit_joints);
-
-  // Action server for arm motions
-  actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> follow_joint_trajectory_action(
-    node, "hebi_arm_controller/follow_joint_trajectory",
-    boost::bind(&hebi::ros::MoveItArmNode::followJointTrajectory, &arm_node, _1), false);
-  arm_node.setActionServer(follow_joint_trajectory_action);
-  follow_joint_trajectory_action.start();
 
   /////////////////// Main Loop ///////////////////
 

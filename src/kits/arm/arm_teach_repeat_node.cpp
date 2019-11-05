@@ -317,6 +317,15 @@ int main(int argc, char ** argv) {
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
 
   auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  for (int num_tries = 0; num_tries < 3; num_tries++) {
+    arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+    if (arm) {
+      break;
+    }
+    ROS_WARN("Could not initialize arm, trying again...");
+    ros::Duration(1.0).sleep();
+  }
+
   if (!arm) {
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
