@@ -9,4 +9,4 @@ home_position: [ 0.01, 2.09439, 2.09439, 0.01, 1.5707963 ]
 
 # Note: the "moveit_joints" must matches the configuration from the MoveIt config; only
 # required when running MoveIt examples
-moveit_joints: ["HEBI/Base/X8_9", "HEBI/Shoulder/X8_16", "HEBI/Elbow/X8_9", "HEBI/Wrist1/X5_1", "HEBI/Wrist2/X5_1"]
+moveit_joints: ["HEBI/base/X8_9", "HEBI/shoulder/X8_16", "HEBI/elbow/X8_9", "HEBI/wrist1/X5_1", "HEBI/wrist2/X5_1"]

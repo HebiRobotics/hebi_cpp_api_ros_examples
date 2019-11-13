@@ -137,7 +137,7 @@ int main(int argc, char ** argv) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
     ROS_INFO("Could not find/read 'families' parameter; defaulting to 'HEBI'");
-    families = {"Rosie"};
+    families = {"HEBI"};
   }
 
   std::vector<std::string> names;
