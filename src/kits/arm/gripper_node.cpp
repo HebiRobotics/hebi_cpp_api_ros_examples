@@ -78,7 +78,7 @@ int main(int argc, char ** argv) {
   {
     hebi::GroupCommand gains_cmd(group->size());
     if (!gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file))
-      ROS_ERROR("Could not load arm gains file!");
+      ROS_ERROR("Could not load gripper gains file!");
     else {
       bool success = false;
       for (size_t i = 0; i < 5; ++i) {

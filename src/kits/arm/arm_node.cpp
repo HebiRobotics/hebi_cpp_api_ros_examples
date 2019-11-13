@@ -6,11 +6,12 @@
 
 #include <geometry_msgs/Point.h>
 #include <trajectory_msgs/JointTrajectory.h>
-#include <std_msgs/Bool.h>
+#include <sensor_msgs/JointState.h>
+#include <std_srvs/SetBool.h>
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
 #include <hebi_cpp_api_examples/ArmMotionAction.h>
-
+#include <hebi_cpp_api_examples/SetIKSeed.h>
 
 #include "hebi_cpp_api/group_command.hpp"
 
@@ -22,7 +23,41 @@ namespace ros {
 
 class ArmNode {
 public:
-  ArmNode(arm::Arm& arm, const Eigen::VectorXd& home_position) : arm_(arm), home_position_(home_position) { }
+  ArmNode(::ros::NodeHandle* nh, arm::Arm& arm, const Eigen::VectorXd& home_position, std::vector<std::string> link_names) : nh_(*nh),
+       arm_(arm),
+       home_position_(home_position),
+       action_server_(*nh, "motion", boost::bind(&ArmNode::startArmMotion, this, _1), false),
+       offset_target_subscriber_(nh->subscribe<geometry_msgs::Point>("offset_target", 50, &ArmNode::offsetTargetCallback, this)),
+       set_target_subscriber_(nh->subscribe<geometry_msgs::Point>("set_target", 50, &ArmNode::setTargetCallback, this)),
+       cartesian_waypoint_subscriber_(nh->subscribe<hebi_cpp_api_examples::TargetWaypoints>("cartesian_waypoints", 50, &hebi::ros::ArmNode::updateCartesianWaypoints, this)),
+       compliant_mode_service_(nh->advertiseService("compliance_mode", &ArmNode::setCompliantMode, this)),
+       ik_seed_service_(nh->advertiseService("set_ik_seed", &hebi::ros::ArmNode::handleIKSeedService, this)),
+       joint_waypoint_subscriber_(nh->subscribe<trajectory_msgs::JointTrajectory>("joint_waypoints", 50, &ArmNode::updateJointWaypoints, this)),
+       arm_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50))  {
+
+    //TODO: Figure out a way to get link names from the arm, so it doesn't need to be input separately
+    state_msg_.name = link_names;
+
+    // start the action server
+    action_server_.start();
+  }
+
+  bool setIKSeed(const std::vector<double>& ik_seed) {
+    if(ik_seed.size() != home_position_.size()) {
+      use_ik_seed_ = false;
+    } else {
+      use_ik_seed_ = true;
+      ik_seed_.resize(ik_seed.size());
+      for (size_t i = 0; i < ik_seed.size(); ++i) {
+        ik_seed_[i] = ik_seed[i];
+      }
+    }
+    return use_ik_seed_;
+  }
+
+  bool handleIKSeedService(hebi_cpp_api_examples::SetIKSeed::Request& req, hebi_cpp_api_examples::SetIKSeed::Response& res) {
+    return setIKSeed(req.seed);
+  }
 
   // Callback for trajectories with joint angle waypoints
   void updateJointWaypoints(trajectory_msgs::JointTrajectory joint_trajectory) {
@@ -58,8 +93,8 @@ public:
   }
 
   void updateCartesianWaypoints(hebi_cpp_api_examples::TargetWaypoints target_waypoints) {
-    if (action_server_->isActive())
-      action_server_->setAborted();
+    if (action_server_.isActive())
+      action_server_.setAborted();
 
     // Fill in an Eigen::Matrix3xd with the xyz goal
     size_t num_waypoints = target_waypoints.waypoints_vector.size();
@@ -78,8 +113,8 @@ public:
   // Set the target end effector location in (x,y,z) space, replanning
   // smoothly to the new location
   void setTargetCallback(geometry_msgs::Point data) {
-    if (action_server_->isActive())
-      action_server_->setAborted();
+    if (action_server_.isActive())
+      action_server_.setAborted();
 
     // Fill in an Eigen::Matrix3xd with the xyz goal
     Eigen::Matrix3Xd xyz_waypoints(3, 1);
@@ -94,8 +129,8 @@ public:
   // "Jog" the target end effector location in (x,y,z) space, replanning
   // smoothly to the new location
   void offsetTargetCallback(geometry_msgs::Point data) {
-    if (action_server_->isActive())
-      action_server_->setAborted();
+    if (action_server_.isActive())
+      action_server_.setAborted();
 
     // Only update if target changes!
     if (data.x == 0 && data.y == 0 && data.z == 0)
@@ -119,18 +154,22 @@ public:
     updateCartesianWaypoints(xyz_waypoints);
   }
 
-  void setCompliantMode(std_msgs::Bool msg) {
-    if (msg.data) {
+  bool setCompliantMode(std_srvs::SetBool::Request &req,
+		        std_srvs::SetBool::Response &res) {
+    if (req.data) {
       // Go into a passive mode so the system can be moved by hand
-      ROS_INFO("Pausing active command (entering grav comp mode)");
+      res.message = "Pausing active command (entering grav comp mode)";
       arm_.cancelGoal();
+      res.success = true;
     } else {
-      ROS_INFO("Resuming active command"); 
+      res.message = "Resuming active command";
       auto t = ::ros::Time::now().toSec();
       auto last_position = arm_.lastFeedback().getPosition();
       arm_.setGoal({last_position});
       target_xyz_ = arm_.FK3Dof(last_position);
+      res.success = true;
     }
+    return true;
   }
 
   void setColor(const Color& color) {
@@ -141,6 +180,7 @@ public:
   }
 
   void startArmMotion(const hebi_cpp_api_examples::ArmMotionGoalConstPtr& goal) {
+    auto last_position = arm_.lastFeedback().getPosition();
     ROS_INFO("Executing arm motion action");
 
     // Replan a smooth joint trajectory from the current location through a
@@ -192,16 +232,16 @@ public:
     hebi_cpp_api_examples::ArmMotionFeedback feedback;
 
     while (true) {
-      if (action_server_->isPreemptRequested() || !::ros::ok()) {
+      if (action_server_.isPreemptRequested() || !::ros::ok()) {
         ROS_INFO("Arm motion action was preempted");
         setColor({0,0,0,0});
         // Note -- the `startArmMotion` function will not be called until the
         // action server has been preempted here:
-        action_server_->setPreempted();
+        action_server_.setPreempted();
         return;
       }
 
-      if (!action_server_->isActive() || !::ros::ok()) {
+      if (!action_server_.isActive() || !::ros::ok()) {
         ROS_INFO("Arm motion was cancelled");
         setColor({0,0,0,0});
         return;
@@ -211,7 +251,7 @@ public:
 
       // Publish progress:
       feedback.percent_complete = arm_.goalProgress() * 100.0;
-      action_server_->publishFeedback(feedback);
+      action_server_.publishFeedback(feedback);
  
       if (arm_.atGoal()) {
         break;
@@ -225,11 +265,28 @@ public:
 
     // publish when the arm is done with a motion
     ROS_INFO("Completed arm motion action");
-    action_server_->setSucceeded();
+    action_server_.setSucceeded();
   }
 
-  void setActionServer(actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction>* action_server) {
-    action_server_ = action_server;
+  void publishState() {
+    auto& fdbk = arm_.lastFeedback();
+
+    // how is there not a better way to do this?
+
+    // Need to copy data from VectorXd to vector<double> in ros msg
+    auto pos = fdbk.getPosition();
+    auto vel = fdbk.getVelocity();
+    auto eff = fdbk.getEffort();
+
+    state_msg_.position.resize(pos.size());
+    state_msg_.velocity.resize(vel.size());
+    state_msg_.effort.resize(eff.size());
+
+    VectorXd::Map(&state_msg_.position[0], pos.size()) = pos;
+    VectorXd::Map(&state_msg_.velocity[0], vel.size()) = vel;
+    VectorXd::Map(&state_msg_.effort[0], eff.size()) = eff;
+
+    arm_state_pub_.publish(state_msg_);
   }
   
 private:
@@ -245,10 +302,25 @@ private:
 
   Eigen::VectorXd home_position_;
 
-  actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction>* action_server_ {nullptr};
+  Eigen::VectorXd ik_seed_{0};
+  bool use_ik_seed_{false};
 
-  // Helper function that indicates whether or not was have received a
-  // command yet.
+  ::ros::NodeHandle nh_;
+
+  sensor_msgs::JointState state_msg_;
+
+  actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction> action_server_;
+
+  ::ros::Subscriber offset_target_subscriber_;
+  ::ros::Subscriber set_target_subscriber_;
+  ::ros::Subscriber cartesian_waypoint_subscriber_;
+  ::ros::Subscriber joint_waypoint_subscriber_;
+
+  ::ros::Publisher arm_state_pub_;
+
+  ::ros::ServiceServer compliant_mode_service_;
+  ::ros::ServiceServer ik_seed_service_;
+
   bool isTargetInitialized() {
     return !std::isnan(target_xyz_.x()) ||
            !std::isnan(target_xyz_.y()) ||
@@ -298,12 +370,34 @@ private:
     // (We use the last position command for smoother motion)
     Eigen::VectorXd last_position = arm_.lastFeedback().getPositionCommand();
 
+    if(use_ik_seed_) {
+      last_position = ik_seed_;
+    }
+
     // For each waypoint, find the joint angles to move to it, starting from the last
     // waypoint, and save into the position vector.
     if (end_tip_directions) {
       // If we are given tip directions, add these too...
       for (size_t i = 0; i < num_waypoints; ++i) {
         last_position = arm_.solveIK5Dof(last_position, xyz_positions.col(i), end_tip_directions->col(i));
+
+        auto fk_check = arm_.FK3Dof(last_position);
+        auto mag_diff = (last_position - fk_check).norm();
+        if (mag_diff > 0.01) {
+          ROS_WARN_STREAM("Target Pose:" << xyz_positions.col(i)[0] << ", "
+                                         << xyz_positions.col(i)[1] << ", "
+                                         << xyz_positions.col(i)[2]);
+          ROS_INFO_STREAM("IK Solution: " << last_position[0] << " | "
+                                          << last_position[1] << " | "
+                                          << last_position[2] << " | "
+                                          << last_position[3] << " | "
+                                          << last_position[4] << " | "
+                                          << last_position[5]);
+          ROS_WARN_STREAM("Pose of IK Solution:" << fk_check[0] << ", "
+                                                 << fk_check[1] << ", "
+                                                 << fk_check[2]);
+          ROS_INFO_STREAM("Distance between target and IK pose: " << mag_diff);
+        }
         positions.col(i) = last_position; 
       }
     } else {
@@ -396,6 +490,15 @@ int main(int argc, char ** argv) {
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
 
   auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  for (int num_tries = 0; num_tries < 3; num_tries++) {
+    arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+    if (arm) {
+      break;
+    }
+    ROS_WARN("Could not initialize arm, trying again...");
+    ros::Duration(1.0).sleep();
+  }
+
   if (!arm) {
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
@@ -423,37 +526,15 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize ROS interface ///////////////////
    
-  hebi::ros::ArmNode arm_node(*arm, home_position);
+  hebi::ros::ArmNode arm_node(&node, *arm, home_position, names);
 
-  // Action server for arm motions
-  actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction> arm_motion_action(
-    node, "motion",
-    boost::bind(&hebi::ros::ArmNode::startArmMotion, &arm_node, _1), false);
-
-  arm_node.setActionServer(&arm_motion_action);
-
-  arm_motion_action.start();
-
-  // "Jog" the end effector
-  ros::Subscriber offset_target_subscriber =
-    node.subscribe<geometry_msgs::Point>("offset_target", 50, &hebi::ros::ArmNode::offsetTargetCallback, &arm_node);
-
-  // Explicitly set the end effector's target position
-  ros::Subscriber set_target_subscriber =
-    node.subscribe<geometry_msgs::Point>("set_target", 50, &hebi::ros::ArmNode::setTargetCallback, &arm_node);
-
-  // Subscribe to lists of (x, y, z) waypoints
-  ros::Subscriber cartesian_waypoint_subscriber =
-    node.subscribe<hebi_cpp_api_examples::TargetWaypoints>("cartesian_waypoints", 50, &hebi::ros::ArmNode::updateCartesianWaypoints, &arm_node);
-
-  // Subscribe to lists of joint angle waypoints
-  ros::Subscriber joint_waypoint_subscriber =
-    node.subscribe<trajectory_msgs::JointTrajectory>("joint_waypoints", 50, &hebi::ros::ArmNode::updateJointWaypoints, &arm_node);
-
-  // Subscribe to "compliant mode" toggle, so the robot is placed in/out of
-  // a "grav comp only" mode.
-  ros::Subscriber compliant_mode_subscriber =
-    node.subscribe<std_msgs::Bool>("compliant_mode", 50, &hebi::ros::ArmNode::setCompliantMode, &arm_node);
+  if (node.hasParam("ik_seed")) {
+    std::vector<double> ik_seed;
+    node.getParam("ik_seed", ik_seed);
+    arm_node.setIKSeed(ik_seed);
+  } else {
+    ROS_WARN("Param ik_seed not set, arm may exhibit erratic behavior");
+  }
 
   /////////////////// Main Loop ///////////////////
 
@@ -469,6 +550,8 @@ int main(int argc, char ** argv) {
       ROS_WARN("Error Getting Feedback -- Check Connection");
     else if (!arm->send())
       ROS_WARN("Error Sending Commands -- Check Connection");
+
+    arm_node.publishState();
 
     // Call any pending callbacks (note -- this may update our planned motion)
     ros::spinOnce();

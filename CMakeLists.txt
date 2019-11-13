@@ -42,6 +42,11 @@ add_message_files(
   OffsetPlayback.msg
 )
 
+add_service_files(
+  FILES
+  SetIKSeed.srv
+)
+
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
