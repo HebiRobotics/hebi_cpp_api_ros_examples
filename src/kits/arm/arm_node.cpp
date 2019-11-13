@@ -26,7 +26,6 @@ public:
   ArmNode(::ros::NodeHandle* nh, arm::Arm& arm, const Eigen::VectorXd& home_position, std::vector<std::string> link_names) : nh_(*nh),
        arm_(arm),
        home_position_(home_position),
-       ik_seed_(false),
        action_server_(*nh, "motion", boost::bind(&ArmNode::startArmMotion, this, _1), false),
        offset_target_subscriber_(nh->subscribe<geometry_msgs::Point>("offset_target", 50, &ArmNode::offsetTargetCallback, this)),
        set_target_subscriber_(nh->subscribe<geometry_msgs::Point>("set_target", 50, &ArmNode::setTargetCallback, this)),
@@ -293,6 +292,9 @@ public:
 private:
   arm::Arm& arm_;
 
+  // The end effector location that this arm will target (NaN indicates
+  // unitialized state, and will be set from feedback during first
+  // command)
   Eigen::Vector3d target_xyz_{
     std::numeric_limits<double>::quiet_NaN(),
     std::numeric_limits<double>::quiet_NaN(),
@@ -300,8 +302,8 @@ private:
 
   Eigen::VectorXd home_position_;
 
-  Eigen::VectorXd ik_seed_;
-  bool use_ik_seed_;
+  Eigen::VectorXd ik_seed_{0};
+  bool use_ik_seed_{false};
 
   ::ros::NodeHandle nh_;
 
