@@ -19,8 +19,8 @@ namespace arm {
 // Typical usage is:
 //
 // arm::Params params;
-// params.families_ = {"HEBI"};
-// params.names_ = {"Base", "Shoulder", "Elbow", "Wrist1", "Wrist2", "Wrist3"};
+// params.families_ = {"Arm"};
+// params.names_ = {"J1_base", "J2_shoulder", "J3_elbow", "J4_wrist1", "J5_wrist2", "J6_wrist3"};
 // params.hrdf_file_ = "my_robot.hrdf"
 //
 // auto arm = Arm::create(time.now(), params);

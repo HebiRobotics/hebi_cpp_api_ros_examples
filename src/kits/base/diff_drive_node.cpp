@@ -127,16 +127,16 @@ int main(int argc, char ** argv) {
   if (node.hasParam("families") && node.getParam("families", families)) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
-    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'HEBI'");
-    families = {"HEBI"};
+    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'DiffDrive'");
+    families = {"DiffDrive"};
   }
 
   std::vector<std::string> names;
   if (node.hasParam("names") && node.getParam("names", names)) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
-    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'Left' and 'Right'");
-    names = {"Left", "Right"};
+    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'left' and 'right'");
+    names = {"left", "right"};
   }
 
   /////////////////// Initialize base ///////////////////

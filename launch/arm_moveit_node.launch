@@ -10,7 +10,7 @@
   package to move a physical arm.
 
   You should specify `arm_type` as a launch file parameter
-  (defaults to the HEBI 6-DoF arm a-2085-06).  This should
+  (defaults to the HEBI 6-DoF arm A-2085-06).  This should
   match a moveit config that is visible as a package with
   name `hebi_<arm_type>_moveit_config`, as well as a config
   parameters file located at `config/<arm_type>_params.yaml`.
@@ -18,7 +18,7 @@
   -->
 
   <!-- specify type of HEBI arm -->
-  <arg name="arm_type" default="a-2085-06" />
+  <arg name="arm_type" default="A-2085-06" />
 
   <!-- specify gripper type (e.g., 'parallel' or 'none') -->
   <arg name="gripper_type" default="none" />

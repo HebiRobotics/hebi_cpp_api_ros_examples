@@ -25,6 +25,8 @@
     <remap from="/save_waypoint" to="/arm/save_waypoint"/>
 
     <remap from="/gripper_strength" to="/gripper/gripper_strength"/>
+
+    <param name="family" value="Rosie"/>
   </node>
 
 </launch>
