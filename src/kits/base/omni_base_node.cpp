@@ -136,16 +136,16 @@ int main(int argc, char ** argv) {
   if (node.hasParam("families") && node.getParam("families", families)) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
-    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'HEBI'");
-    families = {"HEBI"};
+    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'OmniDrive'");
+    families = {"OmniDrive"};
   }
 
   std::vector<std::string> names;
   if (node.hasParam("names") && node.getParam("names", names)) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
-    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'Wheel1', 'Wheel2', and 'Wheel3' ");
-    names = {"Wheel1", "Wheel2", "Wheel3"};
+    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'wheel1', 'wheel2', and 'wheel3' ");
+    names = {"wheel1", "wheel2", "wheel3"};
   }
 
   // Topics for publishing calculated odometry

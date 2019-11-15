@@ -78,7 +78,7 @@ private:
 // 
 // Example usage for effort-controller gripper:
 // 
-// auto end_effector = EndEffector<1, EndEffectorCommand::Effort>::create("HEBI", "Gripper");
+// auto end_effector = EndEffector<1, EndEffectorCommand::Effort>::create("Arm", "gripperSpool");
 // Eigen::VectorXd aux_state(1);
 // aux_state.setConstant(0);
 // while(true) {

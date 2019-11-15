@@ -16,7 +16,7 @@
   -->
 
   <!-- specify type of HEBI arm -->
-  <arg name="arm_type" default="a-2085-06" />
+  <arg name="arm_type" default="A-2085-06" />
 
   <!-- The moveit configuration matching the above args -->
   <arg name="moveit_arm_type" value="$(eval (arm_type + '-parallel-gripper'))"/> 

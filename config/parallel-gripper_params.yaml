@@ -1,6 +1,6 @@
 # Parameters for the module name, gains, etc
-name: "Spool"
-family: "HEBI"
+name: "gripperSpool"
+family: "Arm"
 gains_package: "hebi_cpp_api_examples"
 gains_file: "config/gains/gripper_spool_gains.xml"
 

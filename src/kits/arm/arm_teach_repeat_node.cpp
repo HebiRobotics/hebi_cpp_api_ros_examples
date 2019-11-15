@@ -284,9 +284,9 @@ int main(int argc, char ** argv) {
 
   /////////////////// Load parameters ///////////////////
 
-  // Get parameters for name/family of modules; defaultint to standard values where appropriate
+  // Get parameters for name/family of modules; defaulting to standard values where appropriate
   std::vector<std::string> families, names;
-  loadOptionalParam(node, families, { "HEBI" }, "families");
+  loadOptionalParam(node, families, { "Arm" }, "families");
   if (!loadRequiredParam(node, names, "names"))
     return 1;
 

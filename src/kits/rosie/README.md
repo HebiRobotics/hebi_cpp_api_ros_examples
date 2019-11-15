@@ -16,7 +16,7 @@ Once connected, the state of several of the Mobile IO controls will be configure
 
 ## To command:
 
-You must have a device running the free HEBI Mobile IO Android/iOS app.  This should be connected to Rosie's WiFi network, and be configured to have family "HEBI" and name "Mobile IO".
+You must have a device running the free HEBI Mobile IO Android/iOS app.  This should be connected to Rosie's WiFi network, and be configured to have family "Rosie" and name "mobileIO".
 
 The controls are are follows:
 

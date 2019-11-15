@@ -34,16 +34,16 @@ int main(int argc, char ** argv) {
   if (node.hasParam("family") && node.getParam("family", family)) {
     ROS_INFO("Found and successfully read 'family' parameter");
   } else {
-    ROS_WARN("Could not find/read 'family' parameter; defaulting to 'HEBI'");
-    family = "HEBI";
+    ROS_WARN("Could not find/read 'family' parameter; defaulting to 'Arm'");
+    family = "Arm";
   }
 
   std::string name;
   if (node.hasParam("name") && node.getParam("name", name)) {
     ROS_INFO("Found and successfully read 'name' parameter");
   } else {
-    ROS_WARN("Could not find/read 'name' parameter; defaulting to 'Spool'");
-    name = "Spool";
+    ROS_WARN("Could not find/read 'name' parameter; defaulting to 'gripperSpool'");
+    name = "gripperSpool";
   }
 
   // Read the package + path for the gains file

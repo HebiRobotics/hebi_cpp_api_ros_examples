@@ -17,8 +17,16 @@ int main(int argc, char ** argv) {
   ros::init(argc, argv, "controller");
   ros::NodeHandle node;
 
+  std::string family;
+  if (node.hasParam("family") && node.getParam("family", family)) {
+    ROS_INFO("Found and successfully read 'family' parameter");
+  } else {
+    ROS_INFO("Could not find/read 'family' parameter; defaulting to 'Rosie'");
+    family = "Rosie";
+  }
+
   // Create mobile IO connection
-  auto io = hebi::MobileIO::create("HEBI", "Mobile IO");
+  auto io = hebi::MobileIO::create(family, "mobileIO");
   using ButtonState = hebi::MobileIODiff::ButtonState;
 
   // TODO: set IO LED green when found, white when exiting?
