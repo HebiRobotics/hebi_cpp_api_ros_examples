@@ -24,7 +24,7 @@
   <arg name="gripper_type" default="none" />
 
   <!-- The moveit configuration matching the above args -->
-  <arg name="moveit_arm_type" value="$(eval (arm_type + '-parallel-gripper') if gripper_type == 'parallel' else arm_type)"/> 
+  <arg name="moveit_arm_type" value="$(eval (arm_type.lower() + '-parallel-gripper') if gripper_type == 'parallel' else arm_type.lower())"/>
 
   <!-- specify the planning pipeline -->
   <arg name="pipeline" default="ompl" />
@@ -38,7 +38,7 @@
   <node pkg="hebi_cpp_api_examples" type="arm_moveit_node" name="arm_moveit_node" output="screen"/>
 
   <!-- Start gripper node as appropriate -->
-  <group ns="gripper" if="$(eval gripper_type == 'parallel')">
+  <group ns="hand_controller" if="$(eval gripper_type == 'parallel')">
     <rosparam file="$(find hebi_cpp_api_examples)/config/$(arg gripper_type)-gripper_params.yaml" command="load" />
     <node pkg="hebi_cpp_api_examples" type="gripper_moveit_node" name="moveit_gripper_node" output="screen" required="true"/>
   </group>
