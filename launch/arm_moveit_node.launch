@@ -23,6 +23,9 @@
   <!-- specify gripper type (e.g., 'parallel' or 'none') -->
   <arg name="gripper_type" default="none" />
 
+  <!-- The folder containing configs for arm and (optionally) gripper -->
+  <arg name="config_dir" default="$(find hebi_cpp_api_examples)/config" />
+
   <!-- The moveit configuration matching the above args -->
   <arg name="moveit_arm_type" value="$(eval (arm_type.lower() + '-parallel-gripper') if gripper_type == 'parallel' else arm_type.lower())"/>
 
@@ -33,14 +36,16 @@
   <arg name="debug" default="false" />
 
   <!-- Parameters for the module names, gains, hrdf, etc -->
-  <rosparam file="$(find hebi_cpp_api_examples)/config/$(arg arm_type)_params.yaml" command="load" />
+  <rosparam file="$(arg config_dir)/$(arg arm_type)_params.yaml" command="load" />
 
   <node pkg="hebi_cpp_api_examples" type="arm_moveit_node" name="arm_moveit_node" output="screen"/>
 
   <!-- Start gripper node as appropriate -->
   <group ns="hand_controller" if="$(eval gripper_type == 'parallel')">
-    <rosparam file="$(find hebi_cpp_api_examples)/config/$(arg gripper_type)-gripper_params.yaml" command="load" />
-    <node pkg="hebi_cpp_api_examples" type="gripper_moveit_node" name="moveit_gripper_node" output="screen" required="true"/>
+    <rosparam file="$(arg config_dir)/$(arg gripper_type)-gripper_params.yaml" command="load" />
+    <node pkg="hebi_cpp_api_examples" type="gripper_moveit_node" name="moveit_gripper_node" output="screen" required="true">
+      <remap from="joint_states" to="/joint_states" />
+    </node>
   </group>
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
