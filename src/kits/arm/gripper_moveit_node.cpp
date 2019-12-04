@@ -259,7 +259,7 @@ int main(int argc, char ** argv) {
 
   // Action server for gripper motions
   actionlib::SimpleActionServer<control_msgs::GripperCommandAction> gripper_command_action(
-    node, "hand_controller/gripper_action",
+    node, "gripper_action",
     boost::bind(&hebi::ros::GripperMoveItNode::gripperCommand, &gripper_node, _1), false);
   gripper_node.setActionServer(gripper_command_action);
   gripper_command_action.start();
