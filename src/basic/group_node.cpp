@@ -24,8 +24,11 @@ namespace ros {
 
 class GroupNode {
 public:
-  GroupNode(::ros::NodeHandle* nh, std::shared_ptr<hebi::Group>& group, std::vector<std::string> link_names) :
+  GroupNode(::ros::NodeHandle* nh, const std::shared_ptr<hebi::Group>& group, const std::vector<std::string> link_names) :
        group_(group),
+       pos_(group->size()),
+       vel_(group->size()),
+       accel_(group->size()),
        command_(group->size()),
        feedback_(group->size()),
        nh_(*nh),
@@ -36,29 +39,27 @@ public:
        group_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50))  {
 
     state_msg_.name = link_names;
+    group_->setCommandLifetimeMs(0.0);
   }
 
   bool setLifetimeCallback(hebi_cpp_api_examples::SetCommandLifetime::Request& req,
-		           hebi_cpp_api_examples::SetCommandLifetime::Response& res) {
-    if(req.duration < 0.0) {
+                           hebi_cpp_api_examples::SetCommandLifetime::Response& res) {
+    if(req.duration < 0.0)
       return false;
-    } else {
-      group_->setCommandLifetimeMs(req.duration);
-    }
-    return true;
+    return group_->setCommandLifetimeMs(1000.0*req.duration);
   }
 
   bool setFeedbackFrequencyCallback(hebi_cpp_api_examples::SetFeedbackFrequency::Request& req,
-		                    hebi_cpp_api_examples::SetFeedbackFrequency::Response& res) {
-    if(req.frequency < 0.0) {
+                                    hebi_cpp_api_examples::SetFeedbackFrequency::Response& res) {
+    if(req.frequency < 0.0)
       return false;
-    } else {
-      group_->setFeedbackFrequencyHz(req.frequency);
-    }
-    return true;
+    return group_->setFeedbackFrequencyHz(req.frequency);
   }
 
   void setJointSetpoint(trajectory_msgs::JointTrajectoryPoint joint_setpoint) {
+    if (trajectory_) {
+      ROS_INFO("Cancelling trajectory, switching to setpoint control");
+    }
     trajectory_ = nullptr;
     trajectory_start_time_ = std::numeric_limits<double>::quiet_NaN();
     Eigen::VectorXd pos(group_->size());
@@ -74,9 +75,7 @@ public:
     command_.setPosition(pos);
     command_.setVelocity(pos);
     command_.setEffort(accel);
-    // flag that new message should be sent in update loop
-    new_setpoint_ = true;
-    // TODO: Should I just publish here instead?
+    group_->sendCommand(command_);
   }
 
   void updateJointWaypoints(trajectory_msgs::JointTrajectory joint_trajectory) {
@@ -150,18 +149,12 @@ public:
       // (trajectory_start_time_ should not be nan here!)
       double t_traj = ::ros::Time::now().toSec() - trajectory_start_time_;
       t_traj = std::min(t_traj, trajectory_->getDuration());
-      Eigen::VectorXd pos;
-      Eigen::VectorXd vel;
-      Eigen::VectorXd accel;
-      trajectory_->getState(t_traj, &pos, &vel, &accel);
+      trajectory_->getState(t_traj, &pos_, &vel_, &accel_);
 
-      command_.setPosition(pos);
-      command_.setVelocity(vel);
-      return group_->sendCommand(command_);
-    } else if (new_setpoint_) {
+      command_.setPosition(pos_);
+      command_.setVelocity(vel_);
       return group_->sendCommand(command_);
     }
-
     return true;
   }
   
@@ -169,8 +162,11 @@ private:
 
   std::shared_ptr<trajectory::Trajectory> trajectory_;
   double trajectory_start_time_{ std::numeric_limits<double>::quiet_NaN() };
-  double last_time_;
+  double last_time_ = 0;
   std::shared_ptr<hebi::Group> group_;
+  Eigen::VectorXd pos_;
+  Eigen::VectorXd vel_;
+  Eigen::VectorXd accel_;
   hebi::GroupCommand command_;
   hebi::GroupFeedback feedback_;
 
@@ -250,6 +246,7 @@ private:
     }
 
     // Create new trajectory
+    ROS_INFO("Creating new trajectory");
     trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
                   waypoint_times, new_positions, &new_velocities, &new_accelerations);
     trajectory_start_time_ = last_time_;
