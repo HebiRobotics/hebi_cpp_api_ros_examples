@@ -45,6 +45,8 @@ add_message_files(
 add_service_files(
   FILES
   SetIKSeed.srv
+  SetCommandLifetime.srv
+  SetFeedbackFrequency.srv
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -158,6 +160,10 @@ target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp src/util/path.cpp src/util/waypoint.cpp)
 add_dependencies(arm_teach_repeat_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_teach_repeat_node ${catkin_LIBRARIES} )
+
+add_executable(group_node src/basic/group_node.cpp)
+add_dependencies(group_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(group_node ${catkin_LIBRARIES} )
 
 add_executable(arm_node src/kits/arm/arm_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
 add_dependencies(arm_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
