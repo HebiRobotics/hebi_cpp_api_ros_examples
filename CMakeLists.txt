@@ -47,6 +47,7 @@ add_service_files(
   SetIKSeed.srv
   SetCommandLifetime.srv
   SetFeedbackFrequency.srv
+  SetGains.srv
 )
 
 ## Generate added messages and services with any dependencies listed here
