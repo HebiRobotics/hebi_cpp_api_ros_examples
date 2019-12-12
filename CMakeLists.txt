@@ -48,6 +48,7 @@ add_service_files(
   SetCommandLifetime.srv
   SetFeedbackFrequency.srv
   SetGains.srv
+  SetFloat.srv
 )
 
 ## Generate added messages and services with any dependencies listed here

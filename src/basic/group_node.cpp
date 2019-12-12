@@ -11,6 +11,7 @@
 #include <hebi_cpp_api_examples/SetCommandLifetime.h>
 #include <hebi_cpp_api_examples/SetFeedbackFrequency.h>
 #include <hebi_cpp_api_examples/SetGains.h>
+#include <hebi_cpp_api_examples/SetFloat.h>
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
 
@@ -38,6 +39,8 @@ public:
        set_lifetime_service_(nh->advertiseService("set_command_lifetime", &GroupNode::setLifetimeCallback, this)),
        set_frequency_service_(nh->advertiseService("set_feedback_frequency", &GroupNode::setFeedbackFrequencyCallback, this)),
        set_gains_(nh->advertiseService("set_gains", &GroupNode::setGainsCallback, this)),
+       set_p_gain_(nh->advertiseService("set_p_gain", &GroupNode::setPGainCallback, this)),
+       set_d_gain_(nh->advertiseService("set_d_gain", &GroupNode::setDGainCallback, this)),
        group_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50))  {
 
     state_msg_.name = link_names;
@@ -62,7 +65,23 @@ public:
     hebi::GroupCommand gains_cmd(group_->size());
     auto file_path = ::ros::package::getPath(req.gains_package) + std::string("/") + req.gains_file;
     ROS_INFO_STREAM("Loading gains from " << file_path);
-    return gains_cmd.readGains(file_path);
+    if (gains_cmd.readGains(file_path))
+        return group_->sendCommand(gains_cmd);
+    return false;
+  }
+
+  bool setPGainCallback(hebi_cpp_api_examples::SetFloat::Request& req,
+                                    hebi_cpp_api_examples::SetFloat::Response& res) {
+    hebi::GroupCommand gains_cmd(group_->size());
+    gains_cmd[1].settings().actuator().positionGains().kP().set(req.value);
+    return group_->sendCommand(gains_cmd);
+  }
+
+  bool setDGainCallback(hebi_cpp_api_examples::SetFloat::Request& req,
+                                    hebi_cpp_api_examples::SetFloat::Response& res) {
+    hebi::GroupCommand gains_cmd(group_->size());
+    gains_cmd[1].settings().actuator().positionGains().kD().set(req.value);
+    return group_->sendCommand(gains_cmd);
   }
 
   void setJointSetpoint(trajectory_msgs::JointTrajectoryPoint joint_setpoint) {
@@ -82,7 +101,7 @@ public:
     }
 
     command_.setPosition(pos);
-    command_.setVelocity(pos);
+    command_.setVelocity(vel);
     command_.setEffort(accel);
   }
 
@@ -190,6 +209,8 @@ private:
   ::ros::ServiceServer set_lifetime_service_;
   ::ros::ServiceServer set_frequency_service_;
   ::ros::ServiceServer set_gains_;
+  ::ros::ServiceServer set_p_gain_;
+  ::ros::ServiceServer set_d_gain_;
 
   // Each row is a separate joint; each column is a separate waypoint.
   void updateJointWaypoints(const Eigen::MatrixXd& angles,
