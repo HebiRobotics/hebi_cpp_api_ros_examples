@@ -45,24 +45,26 @@ public:
 
   bool setLifetimeCallback(hebi_cpp_api_examples::SetCommandLifetime::Request& req,
                            hebi_cpp_api_examples::SetCommandLifetime::Response& res) {
-    if(req.duration < 0.0)
+    if(req.lifetime.toSec() < 0.0)
       return false;
-    return group_->setCommandLifetimeMs(1000.0*req.duration);
+    return group_->setCommandLifetimeMs(1000.0 * req.lifetime.toSec());
   }
 
   bool setFeedbackFrequencyCallback(hebi_cpp_api_examples::SetFeedbackFrequency::Request& req,
                                     hebi_cpp_api_examples::SetFeedbackFrequency::Response& res) {
-    if(req.frequency < 0.0)
+    if(req.frequency_hz < 0.0)
       return false;
-    return group_->setFeedbackFrequencyHz(req.frequency);
+    return group_->setFeedbackFrequencyHz(req.frequency_hz);
   }
 
   bool setGainsCallback(hebi_cpp_api_examples::SetGains::Request& req,
-                                    hebi_cpp_api_examples::SetGains::Response& res) {
+                        hebi_cpp_api_examples::SetGains::Response& res) {
     hebi::GroupCommand gains_cmd(group_->size());
     auto file_path = ::ros::package::getPath(req.gains_package) + std::string("/") + req.gains_file;
     ROS_INFO_STREAM("Loading gains from " << file_path);
-    return gains_cmd.readGains(file_path);
+    if (!gains_cmd.readGains(file_path))
+      return false;
+    return group_->sendCommand(gains_cmd);
   }
 
   void setJointSetpoint(trajectory_msgs::JointTrajectoryPoint joint_setpoint) {
@@ -82,7 +84,7 @@ public:
     }
 
     command_.setPosition(pos);
-    command_.setVelocity(pos);
+    command_.setVelocity(vel);
     command_.setEffort(accel);
   }
 
@@ -116,12 +118,6 @@ public:
       times(waypoint) = cmd_waypoint.time_from_start.toSec();
     }
     updateJointWaypoints(pos, vel, accel, times);
-  }
-
-  void setColor(const Color& color) {
-    for (int i = 0; i < command_.size(); ++i) {
-      command_[i].led().set(color);
-    }
   }
 
   void publishState() {
