@@ -3,7 +3,7 @@
   <name>hebi_cpp_api_examples</name>
   <version>1.0.0</version>
   <description>Examples of using HEBI components through ROS, using the HEBI C++ API.</description>
-  <maintainer email="matt@hebirobotics.com">Matthew Tesch</maintainer>
+  <maintainer email="chris@hebirobotics.com">Chris Bollinger</maintainer>
   <license>MIT</license>
 
   <url type="website">http://wiki.ros.org/hebi_cpp_api</url>
@@ -12,7 +12,9 @@
   <author email="matt@hebirobotics.com">Matthew Tesch</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roslib</build_depend>
   <build_depend>message_generation</build_depend>
+  <build_depend>genmsg</build_depend>
   <exec_depend>message_runtime</exec_depend>
   <build_export_depend>message_runtime</build_export_depend>
 
