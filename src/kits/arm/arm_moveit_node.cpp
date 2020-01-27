@@ -275,6 +275,10 @@ int main(int argc, char ** argv) {
   }
 
   if (!arm) {
+    ROS_ERROR_STREAM("Failed to find the following modules in family: " << families.at(0));
+    for(auto it = names.begin(); it != names.end(); ++it) {
+        ROS_ERROR_STREAM("> " << *it);
+    }
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
   }
