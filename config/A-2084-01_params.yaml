@@ -5,7 +5,7 @@ gains_package: "hebi_cpp_api_examples"
 gains_file: "config/gains/A-2084-01_gains.xml"
 hrdf_package: "hebi_cpp_api_examples"
 hrdf_file: "config/hrdf/A-2084-01.hrdf"
-home_position: [ 0.01, 0.01, 0.01, 0.01 ]
+home_position: [ -1.0, 0.0, -2.0, 0.0 ]
 
 # Note: the "moveit_joints" must matches the configuration from the MoveIt config; only
 # required when running MoveIt examples
