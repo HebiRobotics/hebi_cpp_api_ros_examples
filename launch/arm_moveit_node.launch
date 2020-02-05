@@ -38,7 +38,7 @@
   <!-- Run rviz by default-->
   <arg name="gui" default="true" />
 
-  <arg name="load_robot_description" default="false" />
+  <arg name="load_robot_description" default="true" />
 
   <!-- Parameters for the module names, gains, hrdf, etc -->
   <rosparam file="$(arg config_dir)/$(arg arm_type)_params.yaml" command="load" />

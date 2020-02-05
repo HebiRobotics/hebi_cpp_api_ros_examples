@@ -66,8 +66,14 @@ bool Arm::loadGains(const std::string& gains_file)
 
 bool Arm::update(double t) {
   // Time must be monotonically increasing!
-  if (t < last_time_)
-    return false;
+  // except if a simulation has just reset...
+  // Don't allow trajectories to execute through a simulation reset
+  if (t < last_time_) {
+    if (trajectory_) {
+      std::cout << "Time has moved backwards, canceling active trajectory." << std::endl;
+      cancelGoal();
+    }
+  }
 
   last_time_ = t;
 
