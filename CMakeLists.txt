@@ -94,6 +94,9 @@ include_directories(
 )
 
 # Different nodes for the arm kits
+add_executable(mecanum_base_node src/kits/base/mecanum_base_node.cpp src/util/mecanum_base.cpp src/util/odom_publisher.cpp)
+add_dependencies(mecanum_base_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(mecanum_base_node ${catkin_LIBRARIES} )
 
 add_executable(omni_base_node src/kits/base/omni_base_node.cpp src/util/omni_base.cpp src/util/odom_publisher.cpp)
 add_dependencies(omni_base_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
@@ -162,6 +165,7 @@ install(TARGETS
   group_node
   gripper_moveit_node
   gripper_node
+  mecanum_base_node
   omni_base_controller_node
   omni_base_node
   rosie_teach_repeat_controller_node
