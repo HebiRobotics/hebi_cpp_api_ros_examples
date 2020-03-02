@@ -1,7 +1,7 @@
 #include "mecanum_base.hpp"
 
 namespace hebi {
-
+  
 MecanumBaseTrajectory MecanumBaseTrajectory::create(const Eigen::VectorXd& dest_positions, double t_now) {
   MecanumBaseTrajectory base_trajectory;
 
@@ -366,14 +366,14 @@ void MecanumBase::updateOdometry(const Eigen::Vector4d& wheel_vel, double dt) {
 Eigen::Matrix<double, 4, 3> MecanumBase::createJacobian() {
   // map from x, y, theta -> wheel angles
 
-  Eigen::MatrixXd j;
+  Eigen::Matrix<double, 4, 3> j;
 
   j << -1.0,  1.0, -base_radius_,
        -1.0, -1.0, -base_radius_,
         1.0,  1.0, -base_radius_,
         1.0, -1.0, -base_radius_;
 
-  j /= wheel_radius_;
+  j /= 1.0 * wheel_radius_;
 
   return j;
 }
@@ -382,19 +382,16 @@ Eigen::Matrix<double, 3, 4> MecanumBase::createJacobianInv() {
   // map from wheel angles -> x, y, theta
   Eigen::Matrix<double, 3, 4> j_inv;
 
-  auto br = MecanumBase::base_radius_;
+  auto br = base_radius_;
 
   j_inv << -1.0, -1.0, 1.0,  1.0,
             1.0, -1.0, 1.0, -1.0,
            -1 / br, -1 / br, -1 / br, -1 / br;
 
-  j_inv *= MecanumBase::wheel_radius_ / 4.0;
+  j_inv *= wheel_radius_ / 4.0;
 
   return j_inv;
 }
-
-constexpr double MecanumBase::wheel_radius_;
-constexpr double MecanumBase::base_radius_;
 
 const Eigen::Matrix<double, 4, 3> MecanumBase::jacobian_ = createJacobian();
 
