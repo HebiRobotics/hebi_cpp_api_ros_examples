@@ -11,17 +11,21 @@
 #include "Eigen/Dense"
 
 /**
- * diff_drive.hpp
+ * omni_base.hpp
  *
- * This file provides an implementation in C++ of an diff drive base.
+ * This file provides an implementation in C++ of an omnidirectional base, such as that on
+ * HEBI's "Rosie" kit.
  *
  * The current implementation provides code for commanding smooth motions of the base.
  */
 
 namespace hebi {
 
-// Note: base trajectory doesn't allow for smooth replanning, because that would be...difficult.  This
-// just represents the raw motion of the joints (left, right).
+// TODO: MecanumBaseTrajectory is _almost_ identical to ArmTrajectory.  Maybe combine
+// these?
+
+// Note: base trajectory doesn't allow for smooth replanning, because that would be...difficult.  It just
+// represents relative motion in (x, y, theta)
 
 class MecanumBaseTrajectory {
 public:
@@ -29,6 +33,9 @@ public:
 
   void getState(double t_now, 
     Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
+
+  // Plan a trajectory to move with a given velocity for the next couple seconds.
+  void replanVel(double t_now, const Eigen::Vector3d& target_vel);
 
   void replan(
     double t_now,
@@ -41,7 +48,7 @@ public:
     const Eigen::MatrixXd& new_positions);
 
   // Heuristic to get the timing of the waypoints. This function can be
-  // modified to add custom waypoint timing.
+// modified to add custom waypoint timing.
   Eigen::VectorXd getWaypointTimes(
     const Eigen::MatrixXd& positions,
     const Eigen::MatrixXd& velocities,
@@ -50,20 +57,12 @@ public:
   std::shared_ptr<hebi::trajectory::Trajectory> getTraj() { return trajectory_; }
   double getTrajStartTime() { return trajectory_start_time_; }
   double getTrajEndTime() { return trajectory_start_time_ + trajectory_->getDuration(); }
-  bool isActive() { return active_; }
-  void setActive(bool is_active) { active_ = is_active; }
-
-  Eigen::Matrix<double, 4, 3> getWheelKinematics() const { return wheel_kinematics_; }
 
 private:
   // This is private, because we want to ensure the MecanumBaseTrajectory is always
   // initialized correctly after creation; use the "create" factory method
   // instead.
   MecanumBaseTrajectory() = default;
-
-  bool active_ = false;
-
-  Eigen::Matrix<double, 4, 3> wheel_kinematics_;
       
   std::shared_ptr<hebi::trajectory::Trajectory> trajectory_ {};
   double trajectory_start_time_ {};
@@ -71,8 +70,8 @@ private:
 
 class MecanumBase {
 public:
-  // Create an diff drive base with the given modules.  Initialize the trajectory planner
-  // with the given time.
+  // Create an omnibase with the given modules.  Initialize the trajectory planner with the given
+  // time.
   static std::unique_ptr<MecanumBase> create(
     const std::vector<std::string>& families,
     const std::vector<std::string>& names,
@@ -90,31 +89,29 @@ public:
   bool isTrajectoryComplete(double time);
 
   GroupFeedback& getLastFeedback() { return feedback_; }
+  MecanumBaseTrajectory& getTrajectory() { return base_trajectory_; }
 
-  // Set color (usually before commanding a new trajectory)
-  void setColor(Color& color);
+  // Odometry/system state
+  const Eigen::Vector3d& getGlobalPose() { return global_pose_; }
+  const Eigen::Vector3d& getGlobalVelocity() { return global_vel_; }
+  const Eigen::Vector3d& getLocalVelocity() { return local_vel_; }
 
-  // Replan trajectory for mixed rotation/translation
-  void startMove(float x, float y, float theta, double current_time);
-  // Replan trajectory for pure rotation
-  void startRotateBy(float radians, double current_time);
-  // Replan trajectory for pure translation
-  void startMoveForward(float distance, double current_time);
-
-  void directVelocityControl(float x, float y, float theta);
+  // Reset before commanding a new trajectory.
+  void resetStart(Color& color);
 
   void clearColor();
 
 private:
   MecanumBase(std::shared_ptr<Group> group,
     MecanumBaseTrajectory base_trajectory,
-    const GroupFeedback& feedback,
     double start_time);
 
+  void convertSE2ToWheel();
+  void updateOdometry(const Eigen::Vector4d& wheel_vel, double dt);
+
   /* Declare main kinematic variables */
-  static constexpr double wheel_radius_ = 0.20; // m
-  static constexpr double base_width_ = 0.225; // m (half of distance between center of mecanum drive wheels)
-  static constexpr double base_length_ = 0.25; // m (half of distance between front and back axles)
+  static constexpr double wheel_radius_ = 0.0762; // m
+  static constexpr double base_radius_ = 0.220; // m (center of omni to origin of base)
 
   std::shared_ptr<Group> group_;
 
@@ -127,8 +124,26 @@ private:
   Eigen::VectorXd vel_;
   Eigen::VectorXd accel_;
   Eigen::VectorXd start_wheel_pos_;
+  Eigen::VectorXd last_wheel_pos_;
+  Eigen::VectorXd wheel_vel_;
 
   MecanumBaseTrajectory base_trajectory_;
+
+  double last_time_{-1};
+
+  // Track odometry; these are updated every time `update` is called.
+  // x/y/theta global pose and velocity
+  Eigen::Vector3d global_pose_{0, 0, 0};
+  Eigen::Vector3d global_vel_{0, 0, 0};
+  // Also, local velocity.
+  Eigen::Vector3d local_vel_{0, 0, 0};
+
+  // Local (x,y,theta) to wheel velocities
+  static Eigen::Matrix<double, 4, 3> createJacobian();
+  static const Eigen::Matrix<double, 4, 3> jacobian_;
+  // Wheel velocities to local (x,y,theta)
+  static Eigen::Matrix<double, 3, 4> createJacobianInv();
+  static const Eigen::Matrix<double, 3, 4> jacobian_inv_;
 
   Color color_;
 };

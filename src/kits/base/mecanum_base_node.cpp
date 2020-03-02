@@ -1,11 +1,9 @@
 #include <ros/ros.h>
-#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Twist.h>
 
 #include <hebi_cpp_api_examples/BaseMotionAction.h>
 
 #include "actionlib/server/simple_action_server.h"
-
-#include "geometry_msgs/Twist.h"
 
 #include "hebi_cpp_api/lookup.hpp"
 #include "hebi_cpp_api/group.hpp"
@@ -14,6 +12,8 @@
 #include "hebi_cpp_api/trajectory.hpp"
 
 #include "src/util/mecanum_base.hpp"
+
+#include "src/util/odom_publisher.hpp"
 
 #include <ros/console.h>
 #include <ros/package.h>
@@ -25,35 +25,62 @@ class BaseNode {
 public:
   BaseNode(MecanumBase& base) : base_(base) {
     Color c;
-    base_.clearColor();
+    base_.resetStart(c);
   }
 
-  void twistCallback(geometry_msgs::Twist msg) {
-    if(action_server_->isActive()) {
-      ROS_INFO("Canceling active trajectory due to twist msg");
-      trajectory_canceled_ = true;
-    }
-    base_.directVelocityControl(msg.linear.x, msg.linear.y, msg.angular.z);
-  }
+  void startBaseMotion(const hebi_cpp_api_examples::BaseMotionGoalConstPtr& goal) {
 
-  // Returns "false" if we have error...
-  bool publishActionProgress(float start_prog, float end_prog)
-  {
-    trajectory_canceled_ = false;
-    hebi_cpp_api_examples::BaseMotionFeedback feedback;
+    // Note: this is implemented right now as translation, _THEN_ rotation...
+    // we can update this later.
+
+    // We pass in the trajectory points in (x, y, theta)... 
+    size_t num_waypoints = 1;
+    Eigen::MatrixXd waypoints(3, num_waypoints);
+
+    ROS_INFO("Executing base motion action");
+
+    ////////////////
+    // Translation
+    ////////////////
+    Color color;
+    if (goal->set_color)
+      color = Color(goal->r, goal->g, goal->b, 255);
+    base_.resetStart(color);
+
+    waypoints(0, 0) = goal->x;
+    waypoints(1, 0) = goal->y;
+    waypoints(2, 0) = goal->theta;
+    base_.getTrajectory().replan(
+      ::ros::Time::now().toSec(),
+      waypoints);
+
+    // Wait until the action is complete, sending status/feedback along the
+    // way.
     ::ros::Rate r(10);
 
-    // Wait until the action is complete, sending status/feedback along the way.
+    hebi_cpp_api_examples::BaseMotionFeedback feedback;
+
     while (true) {
-      if (action_server_->isPreemptRequested() || trajectory_canceled_ || !::ros::ok()) {
-        ROS_INFO("Preempted base motion");
+      if (action_server_->isPreemptRequested() || !::ros::ok()) {
+        ROS_INFO("Base motion was preempted");
+        base_.clearColor();
+        // Note -- the `startBaseMotion` function will not be called until the
+        // action server has been preempted here:
         action_server_->setPreempted();
-        return false;
+        return;
       }
+
+      if (!action_server_->isActive() || !::ros::ok()) {
+        ROS_INFO("Base motion was cancelled");
+        base_.clearColor();
+        return;
+      }
+
       auto t = ::ros::Time::now().toSec();
 
       // Publish progress:
-      feedback.percent_complete = start_prog + (end_prog - start_prog) * base_.trajectoryPercentComplete(t) / 2.0;
+      auto& base_traj = base_.getTrajectory();
+      feedback.percent_complete = base_.trajectoryPercentComplete(t) / 2.0;
       action_server_->publishFeedback(feedback);
  
       if (base_.isTrajectoryComplete(t)) {
@@ -63,57 +90,26 @@ public:
       // Limit feedback rate
       r.sleep(); 
     }
-    return true;
-
-  }
-
-  void startBaseMotion(const hebi_cpp_api_examples::BaseMotionGoalConstPtr& goal) {
-
-    ROS_INFO("Executing base motion action");
-    // Note: this is implemented right now as rotation, _THEN_ translation, _THEN_ rotation...
-
-    // Set color:
-    Color color;
-    if (goal->set_color)
-      color = Color(goal->r, goal->g, goal->b, 255);
-    base_.setColor(color);
-
-    // Face towards (x, y), assuming we start pointed with the x axis forward and the y axis left:
-    bool success = true;
-    if (goal->x != 0 || goal->y != 0)
-    {
-      auto theta_dir = std::atan2(goal->y, goal->x);
-      auto goal_dist = std::sqrt(goal->x * goal->x + goal->y * goal->y);
-
-      base_.startRotateBy(theta_dir,
-          ::ros::Time::now().toSec());
-      success = publishActionProgress(0.0, 0.33);
-      if (success) {
-        base_.startMoveForward(goal_dist,
-          ::ros::Time::now().toSec());
-        success = publishActionProgress(0.33, 0.67);
-      }
-      if (success) {
-        base_.startRotateBy(goal->theta - theta_dir,
-          ::ros::Time::now().toSec());
-        success = publishActionProgress(0.67, 1.0);
-      }
-    } else {
-      // Pure rotation:
-      base_.startRotateBy(goal->theta,
-          ::ros::Time::now().toSec());
-      success = publishActionProgress(0.0, 1.0);
-    }
 
     base_.clearColor();
 
     // publish when the base is done with a motion
     ROS_INFO("Completed base motion action");
+    action_server_->setSucceeded();
+  }
 
-    hebi_cpp_api_examples::BaseMotionResult result;
+  // Set the velocity, canceling any active action
+  void updateVelocity(geometry_msgs::Twist cmd_vel) {
+    // Cancel any active action:
+    if (action_server_->isActive())
+      action_server_->setAborted();
 
-    result.success = success;
-    action_server_->setSucceeded(result); // TODO: set failed?
+    // Replan given the current command
+    Eigen::Vector3d target_vel;
+    target_vel << cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z;
+    base_.getTrajectory().replanVel(
+      ::ros::Time::now().toSec(),
+      target_vel);
   }
 
   void setActionServer(actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server) {
@@ -124,16 +120,16 @@ private:
   MecanumBase& base_; 
 
   actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server_ {nullptr};
-  bool trajectory_canceled_ = false;
 };
 
 } // namespace ros
 } // namespace hebi
 
 int main(int argc, char ** argv) {
+  std::cout << "Hello?" << std::endl;
 
   // Initialize ROS node
-  ros::init(argc, argv, "diff_drive_node");
+  ros::init(argc, argv, "mecanum_base_node");
   ros::NodeHandle node;
 
   // Get parameters for name/family of modules; default to standard values:
@@ -142,15 +138,30 @@ int main(int argc, char ** argv) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
     ROS_INFO("Could not find/read 'families' parameter; defaulting to 'MecanumBase'");
-    families = {"mecanumBase"};
+    families = {"MecanumBase"};
   }
 
   std::vector<std::string> names;
   if (node.hasParam("names") && node.getParam("names", names)) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
-    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'front/backLeft' and 'front/backRight'");
+    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'wheel1', 'wheel2', and 'wheel3' ");
     names = {"frontLeft", "backLeft", "frontRight", "backRight"};
+  }
+
+  // Topics for publishing calculated odometry
+  std::unique_ptr<hebi::ros::OdomPublisher> odom_publisher;
+  {
+    bool publish_odom{};
+    if (node.hasParam("publish_odom") && node.getParam("publish_odom", publish_odom)) {
+      ROS_INFO("Found and successfully read 'publish_odom' parameter");
+    } else {
+      ROS_INFO("Could not find/read 'publish_odom' parameter; defaulting to 'false' ");
+      publish_odom = false;
+    }
+    if (publish_odom) {
+      odom_publisher.reset(new hebi::ros::OdomPublisher(node));
+    }
   }
 
   /////////////////// Initialize base ///////////////////
@@ -173,8 +184,6 @@ int main(int argc, char ** argv) {
    
   hebi::ros::BaseNode base_node(*base);
 
-  auto sub_handle = node.subscribe("cmd_vel", 10, &hebi::ros::BaseNode::twistCallback, &base_node);
-
   // Action server for base motions
   actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction> base_motion_action(
     node, "motion",
@@ -184,6 +193,10 @@ int main(int argc, char ** argv) {
 
   base_motion_action.start();
 
+  // Explicitly set the target velocity
+  ros::Subscriber set_velocity_subscriber =
+    node.subscribe<geometry_msgs::Twist>("cmd_vel", 1, &hebi::ros::BaseNode::updateVelocity, &base_node);
+
   /////////////////// Main Loop ///////////////////
 
   double t_now;
@@ -191,12 +204,15 @@ int main(int argc, char ** argv) {
   // Main command loop
   while (ros::ok()) {
 
-    auto t = ros::Time::now().toSec();
+    auto t = ros::Time::now();
 
     // Update feedback, and command the base to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
-    if (!base->update(t))
+    if (!base->update(t.toSec()))
       ROS_WARN("Error Getting Feedback -- Check Connection");
+
+    if (odom_publisher)
+      odom_publisher->send(t, base->getGlobalPose(), base->getGlobalVelocity());
 
     // Call any pending callbacks (note -- this may update our planned motion)
     ros::spinOnce();

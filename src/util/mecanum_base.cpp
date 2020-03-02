@@ -5,13 +5,8 @@ namespace hebi {
 MecanumBaseTrajectory MecanumBaseTrajectory::create(const Eigen::VectorXd& dest_positions, double t_now) {
   MecanumBaseTrajectory base_trajectory;
 
-  base_trajectory.wheel_kinematics_ << -1.0,  1.0,  -1.0,
-                                       -1.0, -1.0,  -1.0,
-                                        1.0,  1.0,  -1.0,
-                                        1.0, -1.0,  -1.0;
-
   // Set up initial trajectory
-  Eigen::MatrixXd positions(2, 1);
+  Eigen::MatrixXd positions(3, 1);
   positions.col(0) = dest_positions;
   base_trajectory.replan(t_now, positions);
 
@@ -30,7 +25,64 @@ void MecanumBaseTrajectory::getState(
 
   trajectory_->getState(t, &positions, &velocities, &accelerations);
 }
-  
+
+void MecanumBaseTrajectory::replanVel(double t_now, const Eigen::Vector3d& target_vel) {
+  Eigen::MatrixXd positions(3, 4);
+  Eigen::MatrixXd velocities(3, 4);
+  Eigen::MatrixXd accelerations(3, 4);
+  // One second to get up to velocity, and then keep going for at least 1 second.
+  Eigen::VectorXd times(4);
+  times << 0, 0.25, 1, 1.25;
+
+  // Initial state
+  // Start from (0, 0, 0), as this is a relative motion.
+
+  // Copy new waypoints
+  auto nan = std::numeric_limits<double>::quiet_NaN();
+  positions.col(0).setZero();
+  positions.col(1).setConstant(nan);
+  positions.col(2).setConstant(nan);
+  positions.col(3).setConstant(nan);
+
+  // Get last command to smoothly maintain commanded velocity
+  Eigen::VectorXd p, v, a;
+  p.resize(3);
+  v.resize(3);
+  a.resize(3);
+  if (trajectory_) {
+    getState(t_now, p, v, a);
+  } else {
+    p.setZero();
+    v.setZero();
+    a.setZero();
+  }
+
+  // Transform last velocity (local from trajectory start) into local frame
+  double theta = p[2];
+  double ctheta = std::cos(-theta);
+  double stheta = std::sin(-theta);
+  double dx = v[0] * ctheta - v[1] * stheta;
+  double dy = v[0] * stheta + v[1] * ctheta;
+  double dtheta = v[2];
+
+  Eigen::Vector3d curr_vel;
+  curr_vel << dx, dy, dtheta;
+
+  velocities.col(0) = curr_vel;
+  velocities.col(1) = velocities.col(2) = target_vel;
+  velocities.col(3).setZero();
+
+  accelerations.col(0).setZero();
+  accelerations.col(1).setZero();
+  accelerations.col(2).setZero();
+  accelerations.col(3).setZero();
+
+  // Create new trajectory
+  trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
+                  times, positions, &velocities, &accelerations);
+  trajectory_start_time_ = t_now;
+}
+
 // Updates the Base State by planning a trajectory to a given set of joint
 // waypoints.  Uses the current trajectory/state if defined.
 // NOTE: this call assumes feedback is populated.
@@ -71,7 +123,6 @@ void MecanumBaseTrajectory::replan(
   trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
                   trajTime, positions, &velocities, &accelerations);
   trajectory_start_time_ = t_now;
-  setActive(true);
 }
   
 // Updates the Base State by planning a trajectory to a given set of joint
@@ -108,13 +159,18 @@ Eigen::VectorXd MecanumBaseTrajectory::getWaypointTimes(
   const Eigen::MatrixXd& accelerations) {
 
   // TODO: make this configurable!
-  double rampTime = 0.5; // Per meter
+  double rampTime = 4.0; // Per meter
   double dist = std::pow(positions(0, 1) - positions(0, 0), 2) + 
                 std::pow(positions(1, 1) - positions(1, 0), 2);
   dist = std::sqrt(dist);
 
+  static constexpr double base_radius = 0.245; // m (half of mecanum wheelbase width)
+  double rot_dist = std::abs(positions(2, 1) - positions(2, 0)) * base_radius;
+
+  dist += rot_dist;
+
   rampTime *= dist;
-  rampTime = std::max(rampTime, 1.25);
+  rampTime = std::max(rampTime, 1.5);
 
   size_t num_waypoints = positions.cols();
 
@@ -132,7 +188,7 @@ std::unique_ptr<MecanumBase> MecanumBase::create(
   double start_time,
   std::string& error_out)
 {
-  // Invalid input!  Size mismatch. A mecanum base has four wheels.
+  // Invalid input!  Size mismatch.  A mecanum base has four wheels.
   if (names.size() != 4 || (families.size() != 1 && families.size() != 4)) {
     assert(false);
     return nullptr;
@@ -182,28 +238,47 @@ std::unique_ptr<MecanumBase> MecanumBase::create(
 
   // NOTE: I don't like that start time is _before_ the "get feedback"
   // loop above...but this is only during initialization
-  MecanumBaseTrajectory base_trajectory = MecanumBaseTrajectory::create(Eigen::Vector2d::Zero(), start_time);
-  return std::unique_ptr<MecanumBase>(new MecanumBase(group, base_trajectory, feedback, start_time));
+  MecanumBaseTrajectory base_trajectory = MecanumBaseTrajectory::create(Eigen::Vector3d::Zero(), start_time);
+  return std::unique_ptr<MecanumBase>(new MecanumBase(group, base_trajectory, start_time));
 }
 
 bool MecanumBase::update(double time) {
 
+  double dt = 0; 
+  if (last_time_ < 0) { // Sentinal value set when we restart...
+    last_time_ = time;
+  } else {
+    dt = time - last_time_;
+  }
+
   if (!group_->getNextFeedback(feedback_))
     return false;
 
-  if (!base_trajectory_.isActive())
-    return true;
+  // Update odometry
+  if (dt > 0) {
+    updateOdometry(feedback_.getVelocity(), dt);
+  }
 
   // Update command from trajectory
   base_trajectory_.getState(time, pos_, vel_, accel_);
-  command_.setPosition(start_wheel_pos_ + pos_);
-  command_.setVelocity(vel_);
+
+  // Convert from x/y/theta to wheel 1/2/3
+  convertSE2ToWheel();
+
+  // Integrate position using wheel velocities.
+  last_wheel_pos_ += wheel_vel_ * dt;
+  command_.setPosition(last_wheel_pos_);
+
+  // Use velocity from trajectory, converted from x/y/theta into wheel velocities above.
+  command_.setVelocity(wheel_vel_);
 
   for (int i = 0; i < 3; ++i) {
     command_[i].led().set(color_);
   }
 
   group_->sendCommand(command_);
+
+  last_time_ = time;
 
   return true; 
 }
@@ -216,78 +291,11 @@ bool MecanumBase::isTrajectoryComplete(double time) {
   return time > base_trajectory_.getTrajEndTime();
 }
   
-void MecanumBase::setColor(Color& color) {
+void MecanumBase::resetStart(Color& color) {
+  start_wheel_pos_ = feedback_.getPosition();
+  last_wheel_pos_ = start_wheel_pos_;
+  last_time_ = -1;
   color_ = color;
-}
-
-void MecanumBase::startRotateBy(float theta, double time) {
-  start_wheel_pos_ = feedback_.getPosition();
-
-  // Note: to rotate by 'theta', each wheel needs to move
-  // 'base_radius_ * theta'.
-  // For a wheel to move 'd', it needs to rotate by
-  // 'd / wheel_radius_' radians.
-  // So, we need to rotate each wheel by
-  // 'base_radius_ * theta / wheel_radius_'
-  float wheel_theta = base_width_ * theta / wheel_radius_;
-
-  // [L; R] final wheel positions
-  Eigen::MatrixXd waypoints(4, 1);
-  // Because of the way the actuators are mounted, rotating in
-  // the '-z' actuator direction will move the robot in a
-  // positive robot-frame direction.
-  waypoints(0, 0) = -wheel_theta; 
-  waypoints(1, 0) = -wheel_theta; 
-  waypoints(2, 0) = -wheel_theta; 
-  waypoints(3, 0) = -wheel_theta; 
-  base_trajectory_.replan(time, waypoints);
-}
-
-void MecanumBase::startMoveForward(float distance, double time) {
-  start_wheel_pos_ = feedback_.getPosition();
-
-  // Note: to move by 'distance', each wheel must move
-  // together by 'distance / wheel_radius_' radians.
-
-  float wheel_theta = distance / wheel_radius_;
-  // [L; R] final wheel positions
-  Eigen::MatrixXd waypoints(4, 1);
-  // Because of the way the actuators are mounted, we negate
-  // the left actuator to move forward.
-  waypoints(0, 0) = wheel_theta; 
-  waypoints(1, 0) = wheel_theta; 
-  waypoints(2, 0) = -wheel_theta; 
-  waypoints(3, 0) = -wheel_theta; 
-  base_trajectory_.replan(time, waypoints);
-}
-
-void MecanumBase::startMove(float x, float y, float theta, double time) {
-  start_wheel_pos_ = feedback_.getPosition();
- 
-  Eigen::Vector3d input { x / wheel_radius_, y / wheel_radius_, theta * base_width_ / wheel_radius_ };
-
-  Eigen::MatrixXd waypoints = base_trajectory_.getWheelKinematics() * input;
-  base_trajectory_.replan(time, waypoints);
-}
-
-void MecanumBase::directVelocityControl(float x, float y, float theta) {
-  base_trajectory_.setActive(false);
-  command_.clear();
-
-  Eigen::Vector3d input { x / wheel_radius_, y / wheel_radius_, theta * base_width_ / wheel_radius_ };
-  Eigen::MatrixXd velocities = base_trajectory_.getWheelKinematics() * input;
-  //auto max_vel = velocities.maxCoeff();
-  //if (max_vel > 1.0) {
-  //  velocities /= max_vel;
-  //}
-
-  command_.setVelocity(velocities);
-
-  for (int i = 0; i < 3; ++i) {
-    command_[i].led().set(color_);
-  }
-
-  group_->sendCommand(command_);
 }
 
 void MecanumBase::clearColor() {
@@ -297,7 +305,6 @@ void MecanumBase::clearColor() {
   
 MecanumBase::MecanumBase(std::shared_ptr<Group> group,
   MecanumBaseTrajectory base_trajectory,
-  const GroupFeedback& feedback,
   double start_time)
   : group_(group),
     feedback_(group->size()),
@@ -305,10 +312,94 @@ MecanumBase::MecanumBase(std::shared_ptr<Group> group,
     pos_(Eigen::VectorXd::Zero(group->size())),
     vel_(Eigen::VectorXd::Zero(group->size())),
     accel_(Eigen::VectorXd::Zero(group->size())),
-    start_wheel_pos_(feedback.getPosition()),
+    start_wheel_pos_(Eigen::VectorXd::Zero(group->size())),
+    last_wheel_pos_(Eigen::VectorXd::Zero(group->size())),
+    wheel_vel_(Eigen::VectorXd::Zero(group->size())),
     base_trajectory_{base_trajectory}
-{
+{}
+
+// Converts a certain number of radians into radians that each wheel would turn
+// _from theta == 0_ to obtain this rotation.
+// Note: we only do this for velocities in order to combine rotations and translations without doing gnarly
+// integrations.
+void MecanumBase::convertSE2ToWheel() {
+
+  // Note -- this converts SE2 positions along a trajectory starting from the initial position of
+  // the robot during this move, not the current local position.  This is designed to be paired
+  // ith the "base_trajectory_" interpolation code!
+
+  double theta = pos_[2];
+  double dtheta = vel_[2];
+
+  double offset = 1.0;
+  double ctheta = std::cos(-theta);
+  double stheta = std::sin(-theta);
+  double dx = vel_[0] * ctheta - vel_[1] * stheta;
+  double dy = vel_[0] * stheta + vel_[1] * ctheta;
+
+  Eigen::Vector3d local_vel;
+  local_vel << dx, dy, dtheta;
+
+  wheel_vel_ = jacobian_ * local_vel;
 }
+
+// Updates local velocity based on wheel change in position since last time
+void MecanumBase::updateOdometry(const Eigen::Vector4d& wheel_vel, double dt) { 
+  // Get local velocities
+  local_vel_ = jacobian_inv_ * wheel_vel;
+
+  // Get global velocity:
+  auto c = std::cos(global_pose_[2]);
+  auto s = std::sin(global_pose_[2]);
+  global_vel_[0] = c * local_vel_[0] - s * local_vel_[1];
+  global_vel_[1] = s * local_vel_[0] + c * local_vel_[1];
+  // Theta transforms directly
+  global_vel_[2] = local_vel_[2];
+
+  global_pose_ += global_vel_ * dt;
+}
+
+// Helper functions for initialization of jacobians as class members, b/c
+// Eigen::Matrix3d objects don't have a constructor which can be used to set
+// values.
+
+Eigen::Matrix<double, 4, 3> MecanumBase::createJacobian() {
+  // map from x, y, theta -> wheel angles
+
+  Eigen::MatrixXd j;
+
+  j << -1.0,  1.0, -base_radius_,
+       -1.0, -1.0, -base_radius_,
+        1.0,  1.0, -base_radius_,
+        1.0, -1.0, -base_radius_;
+
+  j /= wheel_radius_;
+
+  return j;
+}
+
+Eigen::Matrix<double, 3, 4> MecanumBase::createJacobianInv() {
+  // map from wheel angles -> x, y, theta
+  Eigen::Matrix<double, 3, 4> j_inv;
+
+  auto br = MecanumBase::base_radius_;
+
+  j_inv << -1.0, -1.0, 1.0,  1.0,
+            1.0, -1.0, 1.0, -1.0,
+           -1 / br, -1 / br, -1 / br, -1 / br;
+
+  j_inv *= MecanumBase::wheel_radius_ / 4.0;
+
+  return j_inv;
+}
+
+constexpr double MecanumBase::wheel_radius_;
+constexpr double MecanumBase::base_radius_;
+
+const Eigen::Matrix<double, 4, 3> MecanumBase::jacobian_ = createJacobian();
+
+// Wheel velocities to local (x,y,theta)
+const Eigen::Matrix<double, 3, 4> MecanumBase::jacobian_inv_ = createJacobianInv();
 
 }
 
