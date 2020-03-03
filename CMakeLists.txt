@@ -123,11 +123,7 @@ add_dependencies(arm_teach_repeat_node ${PROJECT_NAME}_generate_messages_cpp ${c
 target_link_libraries(arm_teach_repeat_node ${catkin_LIBRARIES} )
 
 add_executable(group_node src/basic/group_node.cpp)
-<<<<<<< HEAD
-add_dependencies(group_node hebi_cpp_api_examples_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
-=======
 add_dependencies(group_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
->>>>>>> master
 target_link_libraries(group_node ${catkin_LIBRARIES} )
 
 add_executable(arm_node src/kits/arm/arm_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
