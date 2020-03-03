@@ -281,6 +281,7 @@ public:
     state_msg_.position.resize(pos.size());
     state_msg_.velocity.resize(vel.size());
     state_msg_.effort.resize(eff.size());
+    state_msg_.header.stamp = ::ros::Time::now();
 
     VectorXd::Map(&state_msg_.position[0], pos.size()) = pos;
     VectorXd::Map(&state_msg_.velocity[0], vel.size()) = vel;
@@ -416,6 +417,17 @@ private:
 } // namespace ros
 } // namespace hebi
 
+template <typename T>
+bool loadParam(ros::NodeHandle node, std::string varname, T& var) {
+  if (node.hasParam(varname) && node.getParam(varname, var)) {
+    ROS_INFO_STREAM("Found and successfully read '" << varname << "' parameter");
+    return true;
+  }
+
+  ROS_ERROR_STREAM("Could not find/read required '" << varname << "' parameter!");
+  return false;
+}
+
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
@@ -434,42 +446,22 @@ int main(int argc, char ** argv) {
   }
 
   std::vector<std::string> names;
-  if (node.hasParam("names") && node.getParam("names", names)) {
-    ROS_INFO("Found and successfully read 'names' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'names' parameter; aborting!");
-    return -1;
-  }
-
   // Read the package + path for the gains file
   std::string gains_package;
-  if (node.hasParam("gains_package") && node.getParam("gains_package", gains_package)) {
-    ROS_INFO("Found and successfully read 'gains_package' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'gains_package' parameter; aborting!");
-    return -1;
-  }
   std::string gains_file;
-  if (node.hasParam("gains_file") && node.getParam("gains_file", gains_file)) {
-    ROS_INFO("Found and successfully read 'gains_file' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'gains_file' parameter; aborting!");
-    return -1;
-  }
-
   // Read the package + path for the hrdf file
   std::string hrdf_package;
-  if (node.hasParam("hrdf_package") && node.getParam("hrdf_package", hrdf_package)) {
-    ROS_INFO("Found and successfully read 'hrdf_package' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'hrdf_package' parameter; aborting!");
-    return -1;
-  }
   std::string hrdf_file;
-  if (node.hasParam("hrdf_file") && node.getParam("hrdf_file", hrdf_file)) {
-    ROS_INFO("Found and successfully read 'hrdf_file' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'hrdf_file' parameter; aborting!");
+
+  bool success = true;
+  success = success && loadParam(node, "names", names);
+  success = success && loadParam(node, "gains_package", gains_package);
+  success = success && loadParam(node, "gains_file", gains_file);
+  success = success && loadParam(node, "hrdf_package", hrdf_package);
+  success = success && loadParam(node, "hrdf_file", hrdf_file);
+
+  if(!success) {
+    ROS_ERROR("Could not find one or more required parameters; aborting!");
     return -1;
   }
 
@@ -500,6 +492,10 @@ int main(int argc, char ** argv) {
   }
 
   if (!arm) {
+    ROS_ERROR_STREAM("Failed to find the following modules in family: " << families.at(0));
+    for(auto it = names.begin(); it != names.end(); ++it) {
+        ROS_ERROR_STREAM("> " << *it);
+    }
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
   }
@@ -524,9 +520,15 @@ int main(int argc, char ** argv) {
     }
   }
 
+  // Make a list of family/actuator formatted names for the JointState publisher
+  std::vector<std::string> full_names;
+  for (size_t idx=0; idx<names.size(); ++idx) {
+    full_names.push_back(families.at(0) + "/" + names.at(idx));
+  }
+
   /////////////////// Initialize ROS interface ///////////////////
-   
-  hebi::ros::ArmNode arm_node(&node, *arm, home_position, names);
+
+  hebi::ros::ArmNode arm_node(&node, *arm, home_position, full_names);
 
   if (node.hasParam("ik_seed")) {
     std::vector<double> ik_seed;
@@ -540,10 +542,16 @@ int main(int argc, char ** argv) {
 
   // We update with a current timestamp so the "setGoal" function
   // is planning from the correct time for a smooth start
+
+  auto t = ros::Time::now();
+
   arm->update(ros::Time::now().toSec());
   arm->setGoal({home_position});
 
+  auto prev_t = t;
   while (ros::ok()) {
+    t = ros::Time::now();
+
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
     if (!arm->update(ros::Time::now().toSec()))
@@ -552,6 +560,13 @@ int main(int argc, char ** argv) {
       ROS_WARN("Error Sending Commands -- Check Connection");
 
     arm_node.publishState();
+
+    // If a simulator reset has occured, go back to the home position.
+    if (t < prev_t) {
+      std::cout << "Returning to home pose after simulation reset" << std::endl;
+      arm->setGoal({home_position});
+    }
+    prev_t = t;
 
     // Call any pending callbacks (note -- this may update our planned motion)
     ros::spinOnce();

@@ -2,7 +2,7 @@
 #include <ros/console.h>
 #include <ros/package.h>
 
-#include <actionlib/server/simple_action_server.h>
+#include <actionlib/server/action_server.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <sensor_msgs/JointState.h>
 
@@ -19,15 +19,17 @@ namespace ros {
 // FollowJointTrajectory (on hebi_arm_controller/follow_joint_trajectory)
 class MoveItArmNode {
 public:
-  MoveItArmNode(arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> moveit_joints)
+  MoveItArmNode(arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> joint_names)
     : arm_(arm),
-      action_server_(node, "hebi_arm_controller/follow_joint_trajectory", boost::bind(&MoveItArmNode::followJointTrajectory, this, _1), false),
+      node_(node),
+      action_server_(node, "hebi_arm_controller/follow_joint_trajectory",
+                     boost::bind(&MoveItArmNode::receiveJointTrajectory, this, _1),
+                     boost::bind(&MoveItArmNode::cancelJointTrajectory, this, _1),
+                     false),
       joint_state_publisher_(node.advertise<sensor_msgs::JointState>("joint_states", 100)) {
 
-    // The "moveit_joints" here are loaded from a rosparam, and should match those in the
-    // moveit_config for the arm.
-    auto num_modules = moveit_joints.size();
-    joint_state_message_.name = moveit_joints;
+    auto num_modules = joint_names.size();
+    joint_state_message_.name = joint_names;
     joint_state_message_.position.resize(num_modules, 0 );
     joint_state_message_.velocity.resize(num_modules, 0 );
     joint_state_message_.effort.resize(num_modules, 0 );
@@ -35,10 +37,30 @@ public:
     action_server_.start();
   }
 
-  void followJointTrajectory(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal) {
-    ROS_INFO("Executing follow joint trajectory action");
-    // Wait until the action is complete, sending status/feedback along the
-    // way.
+  void receiveJointTrajectory(actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> gh) {
+    next_goal_ = gh;
+    has_next_goal_ = true;
+  }
+
+  void cancelJointTrajectory(actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> gh) {
+    if(trajectory_goal_.getGoalID().id == gh.getGoalID().id) {
+      ROS_INFO("Follow joint trajectory was cancelled");
+      trajectory_goal_.setCanceled();
+      arm_.cancelGoal();
+      // Instead of going 'limp', freeze at current position when cancel occurs
+      Eigen::VectorXd stop_pos(arm_.size());
+      for (size_t i = 0; i < joint_state_message_.position.size(); ++i) {
+        stop_pos[i] = joint_state_message_.position[i];
+      }
+      arm_.setGoal({stop_pos});
+    } else {
+      ROS_WARN("Attempted to cancel trajectory which is NOT the current trajectory");
+    }
+  }
+
+  void setJointTrajectory(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal) {
+    ROS_INFO("Setting new joint trajectory goal");
+    // Builds trajectory to reach goal, and begins execution.
 
     /////////////////////////////////
     // Remap
@@ -54,7 +76,7 @@ public:
       auto location = std::find(dst_names.begin(), dst_names.end(), src_names[i]);
       if (location == dst_names.end())
       {
-        action_server_.setAborted();
+        trajectory_goal_.setAborted();
         return;
       }
       ros_to_hebi[i] = location - dst_names.begin();
@@ -86,61 +108,38 @@ public:
     }
 
     arm::Goal arm_goal(times, positions, velocities, accelerations);
+    ROS_INFO("Setting Arm Goal");
     arm_.setGoal(arm_goal);
-
-    /////////////////////////////////
-    // Execute trajectory
-    /////////////////////////////////
-
-    // Wait until the action is complete, sending status/feedback along the
-    // way.
-    ::ros::Rate r(10);
-    control_msgs::FollowJointTrajectoryFeedback feedback;
-
-    ROS_INFO("HEBI MoveIt Arm Node executing trajectory");
-
-    while (true) {
-      if (action_server_.isPreemptRequested() || !::ros::ok()) {
-        ROS_INFO("Follow joint trajectory action was preempted");
-        // Note -- the `followJointTrajectory` function will not be called until the
-        // action server has been preempted here:
-        action_server_.setPreempted();
-        return;
-      }
-
-      if (!action_server_.isActive() || !::ros::ok()) {
-        ROS_INFO("Follow joint trajectory was cancelled");
-        return;
-      }
-
-      auto t = ::ros::Time::now().toSec();
-
-      // Publish progress:
-      // TODO: we could fill in the action server feedback with desired, actual, and
-      // error values if necessary. For now, we rely on the joint_states message to
-      // accomplish this.
-      // action_server_.publishFeedback(feedback);
- 
-      if (arm_.atGoal()) {
-        break;
-      }
-
-      // Limit feedback rate
-      r.sleep(); 
-    }
-    
-    // TODO: We could fill in the action server's result with an error code and error string if
-    // desired.  Also, we could/should check the path and goal tolerance here.
-
-    // publish when the arm is done with a motion
-    ROS_INFO("Completed follow joint trajectory action");
-    action_server_.setSucceeded();
   }
 
   // The "heartbeat" of the program -- sends out messages and updates feedback from
   // and commands to robot
+  // also handles incoming trajectory goals
   bool update(::ros::Time t) {
     static int seq = 0;
+
+    if (has_next_goal_) {
+      has_next_goal_ = false;
+      if (trajectory_goal_.isValid()) {
+        auto curr_status = trajectory_goal_.getGoalStatus().status;
+        if(curr_status == actionlib_msgs::GoalStatus::PENDING || curr_status == actionlib_msgs::GoalStatus::ACTIVE) {
+          ROS_INFO("New goal received, preempting current trajectory...");
+          trajectory_goal_.setCanceled();
+        }
+      }
+
+      trajectory_goal_ = next_goal_;
+      trajectory_goal_.setAccepted();
+      setJointTrajectory(trajectory_goal_.getGoal());
+    }
+
+    if(trajectory_goal_.isValid()) {
+      auto curr_status = trajectory_goal_.getGoalStatus().status;
+      if(curr_status == actionlib_msgs::GoalStatus::ACTIVE && arm_.atGoal()) {
+        ROS_INFO("Completed follow joint trajectory action");
+        trajectory_goal_.setSucceeded();
+      }
+    }
 
     // Update arm, and send new commands
     bool res = arm_.update(t.toSec());
@@ -170,8 +169,12 @@ public:
 
 private:
   arm::Arm& arm_;
+  ::ros::NodeHandle& node_;
 
-  actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> action_server_;
+  actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> trajectory_goal_;
+  actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> next_goal_;
+  bool has_next_goal_ = false;
+  actionlib::ActionServer<control_msgs::FollowJointTrajectoryAction> action_server_;
 
   ::ros::Publisher joint_state_publisher_;
 
@@ -180,6 +183,17 @@ private:
 
 } // namespace ros
 } // namespace hebi
+
+template <typename T>
+bool loadParam(ros::NodeHandle node, std::string varname, T& var) {
+  if (node.hasParam(varname) && node.getParam(varname, var)) {
+    ROS_INFO_STREAM("Found and successfully read '" << varname << "' parameter");
+    return true;
+  }
+
+  ROS_ERROR_STREAM("Could not find/read required '" << varname << "' parameter!");
+  return false;
+}
 
 int main(int argc, char ** argv) {
 
@@ -199,52 +213,20 @@ int main(int argc, char ** argv) {
   }
 
   std::vector<std::string> names;
-  if (node.hasParam("names") && node.getParam("names", names)) {
-    ROS_INFO("Found and successfully read 'names' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'names' parameter; aborting!");
-    return -1;
-  }
-
-  std::vector<std::string> moveit_joints;
-  if (node.hasParam("moveit_joints") &&
-      node.getParam("moveit_joints", moveit_joints) &&
-      moveit_joints.size() == names.size()) {
-    ROS_INFO("Found and successfully read 'moveit_joints' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'moveit_joints' parameter or parameter did not match length of 'names'; aborting!");
-    return -1;
-  }
-
-  // Read the package + path for the gains file
   std::string gains_package;
-  if (node.hasParam("gains_package") && node.getParam("gains_package", gains_package)) {
-    ROS_INFO("Found and successfully read 'gains_package' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'gains_package' parameter; aborting!");
-    return -1;
-  }
   std::string gains_file;
-  if (node.hasParam("gains_file") && node.getParam("gains_file", gains_file)) {
-    ROS_INFO("Found and successfully read 'gains_file' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'gains_file' parameter; aborting!");
-    return -1;
-  }
-
-  // Read the package + path for the hrdf file
   std::string hrdf_package;
-  if (node.hasParam("hrdf_package") && node.getParam("hrdf_package", hrdf_package)) {
-    ROS_INFO("Found and successfully read 'hrdf_package' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'hrdf_package' parameter; aborting!");
-    return -1;
-  }
   std::string hrdf_file;
-  if (node.hasParam("hrdf_file") && node.getParam("hrdf_file", hrdf_file)) {
-    ROS_INFO("Found and successfully read 'hrdf_file' parameter");
-  } else {
-    ROS_ERROR("Could not find/read required 'hrdf_file' parameter; aborting!");
+
+  bool success = true;
+  success = success && loadParam(node, "names", names);
+  success = success && loadParam(node, "gains_package", gains_package);
+  success = success && loadParam(node, "gains_file", gains_file);
+  success = success && loadParam(node, "hrdf_package", hrdf_package);
+  success = success && loadParam(node, "hrdf_file", hrdf_file);
+
+  if(!success) {
+    ROS_ERROR("Could not find one or more required parameters; aborting!");
     return -1;
   }
 
@@ -275,10 +257,14 @@ int main(int argc, char ** argv) {
   }
 
   if (!arm) {
+    ROS_ERROR_STREAM("Failed to find the following modules in family: " << families.at(0));
+    for(auto it = names.begin(); it != names.end(); ++it) {
+        ROS_ERROR_STREAM("> " << *it);
+    }
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
   }
-  
+
   // Load the appropriate gains file
   if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
     ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
@@ -299,23 +285,41 @@ int main(int argc, char ** argv) {
     }
   }
 
+  // Make a list of family/actuator formatted names for the JointState publisher
+  std::vector<std::string> full_names;
+  for (size_t idx=0; idx<names.size(); ++idx) {
+    full_names.push_back(families.at(0) + "/" + names.at(idx));
+  }
+
   /////////////////// Initialize ROS interface ///////////////////
-  
-  hebi::ros::MoveItArmNode arm_node(*arm, node, moveit_joints);
+
+  hebi::ros::MoveItArmNode arm_node(*arm, node, full_names);
 
   /////////////////// Main Loop ///////////////////
 
   // We update with a current timestamp so the "setGoal" function
   // is planning from the correct time for a smooth start
-  arm_node.update(ros::Time::now());
+
+  auto t = ros::Time::now();
+
+  arm_node.update(t);
   arm->setGoal({home_position});
 
+  auto prev_t = t;
   while (ros::ok()) {
+    t = ros::Time::now();
 
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
-    if (!arm_node.update(ros::Time::now()))
+    if (!arm_node.update(t))
       ROS_WARN("Error Getting Feedback -- Check Connection");
+
+    // If a simulator reset has occured, go back to the home position.
+    if (t < prev_t) {
+      std::cout << "Resetting action server and returning to home pose after simulation reset" << std::endl;
+      arm->setGoal({home_position});
+    }
+    prev_t = t;
 
     // Call any pending callbacks (note -- this may update our planned motion)
     ros::spinOnce();

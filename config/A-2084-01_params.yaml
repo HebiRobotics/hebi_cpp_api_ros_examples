@@ -2,10 +2,10 @@
 names: [ "J1_base", "J2_shoulder", "J3_elbow", "J4_wrist" ]
 families: [ "Arm" ]
 gains_package: "hebi_cpp_api_examples"
-gains_file: "config/gains/A-2085-04_gains.xml"
+gains_file: "config/gains/A-2084-01_gains.xml"
 hrdf_package: "hebi_cpp_api_examples"
-hrdf_file: "config/hrdf/A-2085-04.hrdf"
-home_position: [ 0.01, 2.09439, 2.09439, 0.01 ]
+hrdf_file: "config/hrdf/A-2084-01.hrdf"
+home_position: [ -1.0, 0.0, -2.0, 0.0 ]
 
 # Note: the "moveit_joints" must matches the configuration from the MoveIt config; only
 # required when running MoveIt examples

@@ -38,6 +38,8 @@
   <!-- Run rviz by default-->
   <arg name="gui" default="true" />
 
+  <arg name="load_robot_description" default="true" />
+
   <!-- Parameters for the module names, gains, hrdf, etc -->
   <rosparam file="$(arg config_dir)/$(arg arm_type)_params.yaml" command="load" />
 
@@ -53,17 +55,13 @@
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
 
-  <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
-  <include file="$(eval find('hebi_' + moveit_arm_type + '_moveit_config') + '/launch/planning_context.launch')">
-    <arg name="load_robot_description" value="true"/>
-  </include>
-
   <!-- Run the main MoveIt! executable -->
   <include file="$(eval find('hebi_' + moveit_arm_type + '_moveit_config') + '/launch/move_group.launch')">
     <arg name="allow_trajectory_execution" value="true"/>
     <arg name="info" value="true"/>
     <arg name="debug" value="$(arg debug)"/>
     <arg name="pipeline" value="$(arg pipeline)"/>
+    <arg name="load_robot_description" value="$(arg load_robot_description)"/>
   </include>
 
   <!-- Run Rviz and load the default config to see the state of the move_group node -->
