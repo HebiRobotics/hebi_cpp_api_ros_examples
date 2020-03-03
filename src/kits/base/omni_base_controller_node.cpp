@@ -46,9 +46,13 @@ int main(int argc, char ** argv) {
     hebi::MobileIODiff diff(last_state, state);
     last_state = state;
 
-    cmd_vel_msg.linear.y = -state.axes_[6];
-    cmd_vel_msg.linear.x = state.axes_[7];
-    cmd_vel_msg.angular.z = -state.axes_[0] * 2.0;
+    auto dy = -state.axes_[6];
+    auto dx = state.axes_[7];
+    auto dtheta = -state.axes_[0];
+
+    cmd_vel_msg.linear.x = pow(dx, 3);
+    cmd_vel_msg.linear.y = pow(dy, 3);
+    cmd_vel_msg.angular.z = pow(dtheta, 3) * 2.0;
     
     if (send_count == 0)
       cmd_vel_pub.publish(cmd_vel_msg);
