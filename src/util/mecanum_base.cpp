@@ -194,6 +194,9 @@ std::unique_ptr<MecanumBase> MecanumBase::create(
     return nullptr;
   }
 
+
+
+  hebi::Command::ControlStrategy strategy;
   // Try to find the modules on the network
   Lookup lookup;
   auto group = lookup.getGroupFromNames(families, names, 10000);
@@ -211,6 +214,7 @@ std::unique_ptr<MecanumBase> MecanumBase::create(
       for (size_t i = 0; i < 5; ++i)
       {
         success = group->sendCommandWithAcknowledgement(gains_cmd);
+        strategy = gains_cmd[0].settings().actuator().controlStrategy().get();
         if (success)
           break;
       }
@@ -239,10 +243,15 @@ std::unique_ptr<MecanumBase> MecanumBase::create(
   // NOTE: I don't like that start time is _before_ the "get feedback"
   // loop above...but this is only during initialization
   MecanumBaseTrajectory base_trajectory = MecanumBaseTrajectory::create(Eigen::Vector3d::Zero(), start_time);
-  return std::unique_ptr<MecanumBase>(new MecanumBase(group, base_trajectory, start_time));
+  auto base = new MecanumBase(group, base_trajectory, start_time);
+  // hack to preserve command strategy over M-stop off trigger
+  // TODO: make this suck less
+  base->strategy_ = strategy;
+  return std::unique_ptr<MecanumBase>(base);
 }
 
 bool MecanumBase::update(double time) {
+  static hebi::Feedback::MstopState last_state = hebi::Feedback::MstopState::NotTriggered;
 
   double dt = 0; 
   if (last_time_ < 0) { // Sentinal value set when we restart...
@@ -253,6 +262,25 @@ bool MecanumBase::update(double time) {
 
   if (!group_->getNextFeedback(feedback_))
     return false;
+
+  auto mstop_state = feedback_[0].actuator().mstopState().get();
+  bool mstop_set = (mstop_state != last_state) && (last_state == hebi::Feedback::MstopState::NotTriggered);
+  bool mstop_reset = (mstop_state != last_state) && (last_state == hebi::Feedback::MstopState::Triggered);
+
+  if (mstop_set) {
+    std::cout << "M-Stop Set!" << std::endl;
+  // falling edge, stop reset
+  } else if (mstop_reset) {
+    std::cout << "M-Stop Released, resending control strategy" << std::endl;
+    // restore saved command strategy, since it's been cleared by M-stop
+    for (int i=0; i < command_.size(); ++i) 
+      command_[i].settings().actuator().controlStrategy().set(strategy_);
+  // don't send a command strategy the rest of the time
+  } else if (command_[0].settings().actuator().controlStrategy().has()){
+    for (int i=0; i < command_.size(); ++i) 
+      command_[i].settings().actuator().controlStrategy().clear();
+  }
+  last_state = mstop_state;
 
   // Update odometry
   if (dt > 0) {
@@ -368,10 +396,10 @@ Eigen::Matrix<double, 4, 3> MecanumBase::createJacobian() {
 
   Eigen::Matrix<double, 4, 3> j;
 
-  j << -1.0,  1.0, -base_radius_,
-       -1.0, -1.0, -base_radius_,
+  j <<  1.0, -1.0, -base_radius_,
         1.0,  1.0, -base_radius_,
-        1.0, -1.0, -base_radius_;
+       -1.0, -1.0, -base_radius_,
+       -1.0,  1.0, -base_radius_;
 
   j /= 1.0 * wheel_radius_;
 
@@ -384,8 +412,8 @@ Eigen::Matrix<double, 3, 4> MecanumBase::createJacobianInv() {
 
   auto br = base_radius_;
 
-  j_inv << -1.0, -1.0, 1.0,  1.0,
-            1.0, -1.0, 1.0, -1.0,
+  j_inv <<  1.0, 1.0, -1.0, -1.0,
+           -1.0, 1.0, -1.0,  1.0,
            -1 / br, -1 / br, -1 / br, -1 / br;
 
   j_inv *= wheel_radius_ / 4.0;

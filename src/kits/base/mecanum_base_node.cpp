@@ -126,7 +126,6 @@ private:
 } // namespace hebi
 
 int main(int argc, char ** argv) {
-  std::cout << "Hello?" << std::endl;
 
   // Initialize ROS node
   ros::init(argc, argv, "mecanum_base_node");
@@ -137,15 +136,15 @@ int main(int argc, char ** argv) {
   if (node.hasParam("families") && node.getParam("families", families)) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
-    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'MecanumBase'");
-    families = {"MecanumBase"};
+    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'mecanumBase'");
+    families = {"mecanumBase"};
   }
 
   std::vector<std::string> names;
   if (node.hasParam("names") && node.getParam("names", names)) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
-    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'wheel1', 'wheel2', and 'wheel3' ");
+    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'frontLeft', 'backLeft', 'frontRight', and 'backRight' ");
     names = {"frontLeft", "backLeft", "frontRight", "backRight"};
   }
 

@@ -118,6 +118,8 @@ private:
   GroupFeedback feedback_;
   GroupCommand command_;
 
+  Command::ControlStrategy strategy_;
+
   // These are just temporary variables to cache output from
   // Trajectory::getState.
   Eigen::VectorXd pos_;
