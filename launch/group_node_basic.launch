@@ -1,6 +1,10 @@
 <launch>
   <rosparam>
+<<<<<<< HEAD
     families: ["ChrisTest"]
+=======
+    families: ["HEBI"]
+>>>>>>> master
     names: ["J1", "J2", "J3"]
     gains_package: "hebi_cpp_api_examples"
     gains_file: "config/gains/group_gains.xml"

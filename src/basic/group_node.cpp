@@ -11,7 +11,10 @@
 #include <hebi_cpp_api_examples/SetCommandLifetime.h>
 #include <hebi_cpp_api_examples/SetFeedbackFrequency.h>
 #include <hebi_cpp_api_examples/SetGains.h>
+<<<<<<< HEAD
 #include <hebi_cpp_api_examples/SetFloat.h>
+=======
+>>>>>>> master
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
 
@@ -39,8 +42,11 @@ public:
        set_lifetime_service_(nh->advertiseService("set_command_lifetime", &GroupNode::setLifetimeCallback, this)),
        set_frequency_service_(nh->advertiseService("set_feedback_frequency", &GroupNode::setFeedbackFrequencyCallback, this)),
        set_gains_(nh->advertiseService("set_gains", &GroupNode::setGainsCallback, this)),
+<<<<<<< HEAD
        set_p_gain_(nh->advertiseService("set_p_gain", &GroupNode::setPGainCallback, this)),
        set_d_gain_(nh->advertiseService("set_d_gain", &GroupNode::setDGainCallback, this)),
+=======
+>>>>>>> master
        group_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50))  {
 
     state_msg_.name = link_names;
@@ -48,13 +54,20 @@ public:
 
   bool setLifetimeCallback(hebi_cpp_api_examples::SetCommandLifetime::Request& req,
                            hebi_cpp_api_examples::SetCommandLifetime::Response& res) {
+<<<<<<< HEAD
     if(req.duration < 0.0)
       return false;
     return group_->setCommandLifetimeMs(1000.0*req.duration);
+=======
+    if(req.lifetime.toSec() < 0.0)
+      return false;
+    return group_->setCommandLifetimeMs(1000.0 * req.lifetime.toSec());
+>>>>>>> master
   }
 
   bool setFeedbackFrequencyCallback(hebi_cpp_api_examples::SetFeedbackFrequency::Request& req,
                                     hebi_cpp_api_examples::SetFeedbackFrequency::Response& res) {
+<<<<<<< HEAD
     if(req.frequency < 0.0)
       return false;
     return group_->setFeedbackFrequencyHz(req.frequency);
@@ -81,6 +94,20 @@ public:
                                     hebi_cpp_api_examples::SetFloat::Response& res) {
     hebi::GroupCommand gains_cmd(group_->size());
     gains_cmd[1].settings().actuator().positionGains().kD().set(req.value);
+=======
+    if(req.frequency_hz < 0.0)
+      return false;
+    return group_->setFeedbackFrequencyHz(req.frequency_hz);
+  }
+
+  bool setGainsCallback(hebi_cpp_api_examples::SetGains::Request& req,
+                        hebi_cpp_api_examples::SetGains::Response& res) {
+    hebi::GroupCommand gains_cmd(group_->size());
+    auto file_path = ::ros::package::getPath(req.gains_package) + std::string("/") + req.gains_file;
+    ROS_INFO_STREAM("Loading gains from " << file_path);
+    if (!gains_cmd.readGains(file_path))
+      return false;
+>>>>>>> master
     return group_->sendCommand(gains_cmd);
   }
 
@@ -137,12 +164,15 @@ public:
     updateJointWaypoints(pos, vel, accel, times);
   }
 
+<<<<<<< HEAD
   void setColor(const Color& color) {
     for (int i = 0; i < command_.size(); ++i) {
       command_[i].led().set(color);
     }
   }
 
+=======
+>>>>>>> master
   void publishState() {
     auto& fdbk = feedback_;
 
@@ -209,8 +239,11 @@ private:
   ::ros::ServiceServer set_lifetime_service_;
   ::ros::ServiceServer set_frequency_service_;
   ::ros::ServiceServer set_gains_;
+<<<<<<< HEAD
   ::ros::ServiceServer set_p_gain_;
   ::ros::ServiceServer set_d_gain_;
+=======
+>>>>>>> master
 
   // Each row is a separate joint; each column is a separate waypoint.
   void updateJointWaypoints(const Eigen::MatrixXd& angles,

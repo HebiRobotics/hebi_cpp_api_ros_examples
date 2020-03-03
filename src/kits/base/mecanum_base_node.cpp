@@ -11,7 +11,7 @@
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
 
-#include "src/util/omni_base.hpp"
+#include "src/util/mecanum_base.hpp"
 
 #include "src/util/odom_publisher.hpp"
 
@@ -23,7 +23,7 @@ namespace ros {
 
 class BaseNode {
 public:
-  BaseNode(OmniBase& base) : base_(base) {
+  BaseNode(MecanumBase& base) : base_(base) {
     Color c;
     base_.resetStart(c);
   }
@@ -117,7 +117,7 @@ public:
   }
 
 private:
-  OmniBase& base_; 
+  MecanumBase& base_; 
 
   actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server_ {nullptr};
 };
@@ -128,7 +128,7 @@ private:
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "omni_base_node");
+  ros::init(argc, argv, "mecanum_base_node");
   ros::NodeHandle node;
 
   // Get parameters for name/family of modules; default to standard values:
@@ -136,16 +136,16 @@ int main(int argc, char ** argv) {
   if (node.hasParam("families") && node.getParam("families", families)) {
     ROS_INFO("Found and successfully read 'families' parameter");
   } else {
-    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'OmniDrive'");
-    families = {"OmniDrive"};
+    ROS_INFO("Could not find/read 'families' parameter; defaulting to 'mecanumBase'");
+    families = {"mecanumBase"};
   }
 
   std::vector<std::string> names;
   if (node.hasParam("names") && node.getParam("names", names)) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
-    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'wheel1', 'wheel2', and 'wheel3' ");
-    names = {"wheel1", "wheel2", "wheel3"};
+    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'frontLeft', 'backLeft', 'frontRight', and 'backRight' ");
+    names = {"frontLeft", "backLeft", "frontRight", "backRight"};
   }
 
   // Topics for publishing calculated odometry
@@ -167,10 +167,10 @@ int main(int argc, char ** argv) {
 
   // Create base and plan initial trajectory
   std::string error_out;
-  auto base = hebi::OmniBase::create(
+  auto base = hebi::MecanumBase::create(
     families, // Famil(ies)
     names, // Names
-    ::ros::package::getPath("hebi_cpp_api_examples") + "/config/gains/omni_base_gains.xml", // Gains file
+    ::ros::package::getPath("hebi_cpp_api_examples") + "/config/gains/mecanum_base_gains.xml", // Gains file
     ros::Time::now().toSec(), // Starting time (for trajectory)
     error_out);
   if (!base) {

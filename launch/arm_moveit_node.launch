@@ -35,6 +35,9 @@
   <!-- By default, we are not in debug mode -->
   <arg name="debug" default="false" />
 
+  <!-- Run rviz by default-->
+  <arg name="gui" default="true" />
+
   <!-- Parameters for the module names, gains, hrdf, etc -->
   <rosparam file="$(arg config_dir)/$(arg arm_type)_params.yaml" command="load" />
 
@@ -64,7 +67,7 @@
   </include>
 
   <!-- Run Rviz and load the default config to see the state of the move_group node -->
-  <include file="$(eval find('hebi_' + moveit_arm_type + '_moveit_config') + '/launch/moveit_rviz.launch')">
+  <include if="$(arg gui)" file="$(eval find('hebi_' + moveit_arm_type + '_moveit_config') + '/launch/moveit_rviz.launch')">
     <arg name="rviz_config" value="$(eval find('hebi_' + moveit_arm_type + '_moveit_config') + '/launch/moveit.rviz')"/>
     <arg name="debug" value="$(arg debug)"/>
   </include>
