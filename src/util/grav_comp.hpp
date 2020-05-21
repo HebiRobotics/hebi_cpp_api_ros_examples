@@ -30,10 +30,10 @@ public:
     normed_gravity *= 9.81;
 
     size_t num_dof = model.getDoFCount();
-    size_t num_frames = model.getFrameCount(HebiFrameTypeCenterOfMass);
+    size_t num_frames = model.getFrameCount(hebi::robot_model::FrameType::CenterOfMass);
 
     hebi::robot_model::MatrixXdVector jacobians;
-    model.getJ(HebiFrameTypeCenterOfMass, feedback.getPosition(), jacobians);
+    model.getJ(hebi::robot_model::FrameType::CenterOfMass, feedback.getPosition(), jacobians);
 
     // Get torque for each module
     // comp_torque = J' * wrench_vector
