@@ -15,15 +15,16 @@
 
 #include "hebi_cpp_api/group_command.hpp"
 
-#include "src/util/arm.hpp"
 #include "hebi_cpp_api/robot_model.hpp"
+
+#include "hebi_cpp_api/arm/arm.hpp"
 
 namespace hebi {
 namespace ros {
 
 class ArmNode {
 public:
-  ArmNode(::ros::NodeHandle* nh, arm::Arm& arm, const Eigen::VectorXd& home_position, std::vector<std::string> link_names) : nh_(*nh),
+  ArmNode(::ros::NodeHandle* nh, hebi::experimental::arm::Arm& arm, const Eigen::VectorXd& home_position, std::vector<std::string> link_names) : nh_(*nh),
        arm_(arm),
        home_position_(home_position),
        action_server_(*nh, "motion", boost::bind(&ArmNode::startArmMotion, this, _1), false),
@@ -138,7 +139,7 @@ public:
 
     // Initialize target from feedback as necessary
     if (!isTargetInitialized()) {
-      auto pos = arm_.FK3Dof(arm_.lastFeedback().getPositionCommand());
+      auto pos = arm_.FK(arm_.lastFeedback().getPositionCommand());
       target_xyz_.x() = pos.x();
       target_xyz_.y() = pos.y();
       target_xyz_.z() = pos.z();
@@ -165,8 +166,8 @@ public:
       res.message = "Resuming active command";
       auto t = ::ros::Time::now().toSec();
       auto last_position = arm_.lastFeedback().getPosition();
-      arm_.setGoal({last_position});
-      target_xyz_ = arm_.FK3Dof(last_position);
+      arm_.setGoal(hebi::experimental::arm::Goal::createFromPosition(last_position));
+      target_xyz_ = arm_.FK(last_position);
       res.success = true;
     }
     return true;
@@ -291,7 +292,7 @@ public:
   }
   
 private:
-  arm::Arm& arm_;
+  hebi::experimental::arm::Arm& arm_;
 
   // The end effector location that this arm will target (NaN indicates
   // unitialized state, and will be set from feedback during first
@@ -343,11 +344,10 @@ private:
     }
 
     // Update stored target position, based on final joint angles.
-    target_xyz_ = arm_.FK3Dof(angles.rightCols<1>());
+    target_xyz_ = arm_.FK(angles.rightCols<1>());
 
     // Replan:
-    arm::Goal arm_goal(times, angles, velocities, accelerations);
-    arm_.setGoal(arm_goal);
+    arm_.setGoal(hebi::experimental::arm::Goal::createFromWaypoints(times, angles, velocities, accelerations));
   }
 
   // Helper function to condense functionality between various message/action callbacks above
@@ -380,9 +380,9 @@ private:
     if (end_tip_directions) {
       // If we are given tip directions, add these too...
       for (size_t i = 0; i < num_waypoints; ++i) {
-        last_position = arm_.solveIK5Dof(last_position, xyz_positions.col(i), end_tip_directions->col(i));
+        last_position = arm_.solveIK(last_position, xyz_positions.col(i), static_cast<Eigen::Vector3d>(end_tip_directions->col(i)));
 
-        auto fk_check = arm_.FK3Dof(last_position);
+        auto fk_check = arm_.FK(last_position);
         auto mag_diff = (last_position - fk_check).norm();
         if (mag_diff > 0.01) {
           ROS_WARN_STREAM("Target Pose:" << xyz_positions.col(i)[0] << ", "
@@ -403,13 +403,13 @@ private:
       }
     } else {
       for (size_t i = 0; i < num_waypoints; ++i) {
-        last_position = arm_.solveIK3Dof(last_position, xyz_positions.col(i));
+        last_position = arm_.solveIK(last_position, xyz_positions.col(i));
         positions.col(i) = last_position; 
       }
     }
 
     // Replan:
-    arm_.setGoal({positions});
+    arm_.setGoal(hebi::experimental::arm::Goal::createFromPositions(positions));
   }
  
 };
@@ -476,14 +476,14 @@ int main(int argc, char ** argv) {
   /////////////////// Initialize arm ///////////////////
 
   // Create arm
-  hebi::arm::Arm::Params params;
+  hebi::experimental::arm::Arm::Params params;
   params.families_ = families;
   params.names_ = names;
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
 
-  auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  auto arm = hebi::experimental::arm::Arm::create(params);
   for (int num_tries = 0; num_tries < 3; num_tries++) {
-    arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+    arm = hebi::experimental::arm::Arm::create(params);
     if (arm) {
       break;
     }
@@ -545,8 +545,8 @@ int main(int argc, char ** argv) {
 
   auto t = ros::Time::now();
 
-  arm->update(ros::Time::now().toSec());
-  arm->setGoal({home_position});
+  arm->update();
+  arm->setGoal(hebi::experimental::arm::Goal::createFromPosition(home_position));
 
   auto prev_t = t;
   while (ros::ok()) {
@@ -554,7 +554,7 @@ int main(int argc, char ** argv) {
 
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
-    if (!arm->update(ros::Time::now().toSec()))
+    if (!arm->update())
       ROS_WARN("Error Getting Feedback -- Check Connection");
     else if (!arm->send())
       ROS_WARN("Error Sending Commands -- Check Connection");
@@ -564,7 +564,7 @@ int main(int argc, char ** argv) {
     // If a simulator reset has occured, go back to the home position.
     if (t < prev_t) {
       std::cout << "Returning to home pose after simulation reset" << std::endl;
-      arm->setGoal({home_position});
+      arm->setGoal(hebi::experimental::arm::Goal::createFromPosition(home_position));
     }
     prev_t = t;
 

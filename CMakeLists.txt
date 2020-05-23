@@ -114,7 +114,7 @@ add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp src/util/diff_d
 add_dependencies(diff_drive_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 
-add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp src/util/path.cpp src/util/waypoint.cpp)
+add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/util/path.cpp src/util/waypoint.cpp)
 add_dependencies(arm_teach_repeat_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_teach_repeat_node ${catkin_LIBRARIES} )
 
@@ -122,11 +122,11 @@ add_executable(group_node src/basic/group_node.cpp)
 add_dependencies(group_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(group_node ${catkin_LIBRARIES} )
 
-add_executable(arm_node src/kits/arm/arm_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
+add_executable(arm_node src/kits/arm/arm_node.cpp)
 add_dependencies(arm_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
 
-add_executable(arm_moveit_node src/kits/arm/arm_moveit_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
+add_executable(arm_moveit_node src/kits/arm/arm_moveit_node.cpp)
 add_dependencies(arm_moveit_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_moveit_node ${catkin_LIBRARIES} )
 
