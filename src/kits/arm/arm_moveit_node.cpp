@@ -20,7 +20,7 @@ namespace ros {
 // FollowJointTrajectory (on hebi_arm_controller/follow_joint_trajectory)
 class MoveItArmNode {
 public:
-  MoveItArmNode(arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> joint_names)
+  MoveItArmNode(hebi::experimental::arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> joint_names)
     : arm_(arm),
       node_(node),
       action_server_(node, "hebi_arm_controller/follow_joint_trajectory",
@@ -169,7 +169,7 @@ public:
   }
 
 private:
-  arm::Arm& arm_;
+  hebi::experimental::arm::Arm& arm_;
   ::ros::NodeHandle& node_;
 
   actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> trajectory_goal_;

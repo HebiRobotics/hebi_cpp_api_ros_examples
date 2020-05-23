@@ -26,7 +26,7 @@ namespace ros {
 // itself.
 class TeachRepeatNode {
 public:
-  TeachRepeatNode(arm::Arm& arm) : arm_(arm) { }
+  TeachRepeatNode(hebi::experimental::arm::Arm& arm) : arm_(arm) { }
 
   ////////////////////////////////////////////////////////
   // Callback functions for ROS subscribers:
