@@ -479,6 +479,11 @@ int main(int argc, char ** argv) {
   hebi::experimental::arm::Arm::Params params;
   params.families_ = families;
   params.names_ = names;
+  params.get_current_time_s_ = []() {
+    static double start_time = ros::Time::now().toSec();
+    return ros::Time::now().toSec() - start_time;
+  };
+
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
 
   auto arm = hebi::experimental::arm::Arm::create(params);
@@ -499,7 +504,7 @@ int main(int argc, char ** argv) {
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
   }
-  
+
   // Load the appropriate gains file
   if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
     ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");

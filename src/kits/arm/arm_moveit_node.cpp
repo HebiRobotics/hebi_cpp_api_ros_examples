@@ -244,6 +244,10 @@ int main(int argc, char ** argv) {
   params.families_ = families;
   params.names_ = names;
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
+  params.get_current_time_s_ = []() {
+    static double start_time = ros::Time::now().toSec();
+    return ros::Time::now().toSec() - start_time;
+  }; 
 
   auto arm = hebi::experimental::arm::Arm::create(params);
   for (int num_tries = 0; num_tries < 3; num_tries++) {
