@@ -192,7 +192,7 @@ void TeachRepeatNode::startPlayback(hebi_cpp_api_examples::Playback msg) {
   }
 }
 
-bool TeachRepeatNode::update(double t) {
+void TeachRepeatNode::update(double t) {
   if (constructing_path_ && t >= last_path_point_time_ + path_dt_) {
     currently_constructing_path_.push_back(arm_.lastFeedback().getPosition());
     last_path_point_time_ = t;
