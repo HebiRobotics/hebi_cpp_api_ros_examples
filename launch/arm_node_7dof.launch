@@ -11,7 +11,7 @@
 
   -->
 
-  <!-- specify type of HEBI arm --
+  <!-- specify type of HEBI arm -->
   <arg name="arm_type" default="A-2099-07G" />
 
   <!-- Parameters for the module names, gains, hrdf, etc -->
