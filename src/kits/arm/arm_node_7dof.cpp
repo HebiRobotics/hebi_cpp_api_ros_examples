@@ -483,7 +483,6 @@ int main(int argc, char ** argv) {
 
   auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
   std::shared_ptr<hebi::Group> double_group;
-  hebi::GroupCommand double_cmd(double_group->size());
   for (int num_tries = 0; num_tries < 3; num_tries++) {
     arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
     {
@@ -498,6 +497,7 @@ int main(int argc, char ** argv) {
     ROS_WARN("Could not initialize arm, trying again...");
     ros::Duration(1.0).sleep();
   }
+  hebi::GroupCommand double_cmd(double_group->size());
 
   if (!arm) {
     ROS_ERROR_STREAM("Failed to find the following modules in family: " << families.at(0));
@@ -511,6 +511,12 @@ int main(int argc, char ** argv) {
   // Load the appropriate gains file
   if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
     ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
+  } else {
+    // dirty hackses I hates them
+    //hebi::GroupCommand gains_cmd(7);
+    //gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file);
+    //hebi::GroupCommand mirror_gain_cmd(1);
+    //mirror_gain_cmd[0].settings().actuator() = gains_cmd[1].settings().actuator();
   }
 
   // Get the home position, defaulting to (nearly) zero
@@ -565,12 +571,12 @@ int main(int argc, char ** argv) {
     if (!arm->update(ros::Time::now().toSec()))
       ROS_WARN("Error Getting Feedback -- Check Connection");
     else {
-      auto cmd = arm->pendingCommand();
-      double_cmd[0].actuator().position().set(-1 * cmd[1].actuator().position().get());
-      double_cmd[0].actuator().velocity().set(-1 * cmd[1].actuator().velocity().get());
+      auto& cmd = arm->pendingCommand();
+      double_cmd[0].actuator().position().set(-cmd[1].actuator().position().get());
+      double_cmd[0].actuator().velocity().set(-cmd[1].actuator().velocity().get());
       // split the effort across the two actuators
       double_cmd[0].actuator().effort().set(-0.5 * cmd[1].actuator().effort().get());
-      cmd[1].actuator().effort().set(cmd[1].actuator().effort().get() / 2.0);
+      cmd[1].actuator().effort().set(0.5 * cmd[1].actuator().effort().get());
       
       if (!arm->send() && double_group->sendCommand(double_cmd))
         ROS_WARN("Error Sending Commands -- Check Connection");

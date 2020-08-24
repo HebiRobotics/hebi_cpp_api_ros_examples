@@ -1,0 +1,12 @@
+# Parameters for the module names, gains, hrdf, etc
+names: [ "J1_base", "J2A_shoulder1", "J3_shoulder2", "J4_elbow", "J5_wrist1", "J6_wrist2", "J7_wrist3" ]
+families: [ "Arm" ]
+gains_package: "hebi_cpp_api_examples"
+gains_file: "config/gains/A-2099-07G_gains.xml"
+hrdf_package: "hebi_cpp_api_examples"
+hrdf_file: "config/hrdf/A-2099-07G.hrdf"
+home_position: [ 0.01, 0.01, 0.01, 0.01, 0.01, 1.5707963, 0.01 ]
+
+# Note: the "moveit_joints" must matches the configuration from the MoveIt config; only
+# required when running MoveIt examples
+moveit_joints: [ "Arm/J1_base", "Arm/J2A_shoulder1", "Arm/J3_shoulder2", "Arm/J4_elbow", "Arm/J5_wrist1", "Arm/J6_wrist2", "Arm/J7_wrist3" ]
