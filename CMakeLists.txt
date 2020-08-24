@@ -118,6 +118,10 @@ add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/
 add_dependencies(arm_teach_repeat_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_teach_repeat_node ${catkin_LIBRARIES} )
 
+add_executable(arm_teach_repeat_node_7dof src/kits/arm/arm_teach_repeat_node_7dof.cpp src/util/arm.cpp src/util/kinematics_helper.cpp src/util/path.cpp src/util/waypoint.cpp)
+add_dependencies(arm_teach_repeat_node_7dof ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_teach_repeat_node_7dof ${catkin_LIBRARIES} )
+
 add_executable(group_node src/basic/group_node.cpp)
 add_dependencies(group_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(group_node ${catkin_LIBRARIES} )
@@ -166,6 +170,7 @@ install(TARGETS
   arm_node
   arm_node_7dof
   arm_teach_repeat_node
+  arm_teach_repeat_node_7dof
   diff_drive_node
   group_node
   gripper_moveit_node
