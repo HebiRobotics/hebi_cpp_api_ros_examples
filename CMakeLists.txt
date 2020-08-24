@@ -126,6 +126,10 @@ add_executable(arm_node src/kits/arm/arm_node.cpp src/util/arm.cpp src/util/kine
 add_dependencies(arm_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_node ${catkin_LIBRARIES} )
 
+add_executable(arm_node_7dof src/kits/arm/arm_node_7dof.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
+add_dependencies(arm_node_7dof ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_node_7dof ${catkin_LIBRARIES} )
+
 add_executable(arm_moveit_node src/kits/arm/arm_moveit_node.cpp src/util/arm.cpp src/util/kinematics_helper.cpp)
 add_dependencies(arm_moveit_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_moveit_node ${catkin_LIBRARIES} )
@@ -160,6 +164,7 @@ install(PROGRAMS src/integrations/clearpath_jackal/jackal_arm_teleop.py
 install(TARGETS
   arm_moveit_node
   arm_node
+  arm_node_7dof
   arm_teach_repeat_node
   diff_drive_node
   group_node
