@@ -446,6 +446,7 @@ int main(int argc, char ** argv) {
   }
 
   std::vector<std::string> names;
+  std::string double_shoulder_name;
   // Read the package + path for the gains file
   std::string gains_package;
   std::string gains_file;
@@ -455,6 +456,7 @@ int main(int argc, char ** argv) {
 
   bool success = true;
   success = success && loadParam(node, "names", names);
+  success = success && loadParam(node, "double_shoulder_name", double_shoulder_name);
   success = success && loadParam(node, "gains_package", gains_package);
   success = success && loadParam(node, "gains_file", gains_file);
   success = success && loadParam(node, "hrdf_package", hrdf_package);
@@ -482,22 +484,14 @@ int main(int argc, char ** argv) {
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
 
   auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
-  std::shared_ptr<hebi::Group> double_group;
   for (int num_tries = 0; num_tries < 3; num_tries++) {
     arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
-    {
-      hebi::Lookup lookup;
-      double_group = lookup.getGroupFromNames(families, {"J2B_shoulder1"});
-      double_group->setCommandLifetimeMs(params.command_lifetime_);
-      double_group->setFeedbackFrequencyHz(params.control_frequency_);
-    }
     if (arm) {
       break;
     }
     ROS_WARN("Could not initialize arm, trying again...");
     ros::Duration(1.0).sleep();
   }
-  hebi::GroupCommand double_cmd(double_group->size());
 
   if (!arm) {
     ROS_ERROR_STREAM("Failed to find the following modules in family: " << families.at(0));
@@ -507,16 +501,85 @@ int main(int argc, char ** argv) {
     ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
   }
+
+  std::shared_ptr<hebi::Group> double_group;
+  for (int num_tries = 0; num_tries < 3; num_tries++) {
+    {
+      hebi::Lookup lookup;
+      double_group = lookup.getGroupFromNames(families, { double_shoulder_name });
+      if(double_group) {
+        double_group->setCommandLifetimeMs(params.command_lifetime_);
+        double_group->setFeedbackFrequencyHz(params.control_frequency_);
+	break;
+      }
+    }
+    ROS_WARN("Could not initialize double shoulder, trying again...");
+    ros::Duration(1.0).sleep();
+  }
+  hebi::GroupCommand double_cmd(double_group->size());
+
+  if (!double_group) {
+    ROS_ERROR_STREAM("Failed to find \"" << double_shoulder_name << "\" in family: " << families.at(0));
+    ROS_ERROR("Could not initialize double shoulder! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+    return -1;
+  }
   
   // Load the appropriate gains file
   if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
     ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
   } else {
-    // dirty hackses I hates them
-    //hebi::GroupCommand gains_cmd(7);
-    //gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file);
-    //hebi::GroupCommand mirror_gain_cmd(1);
-    //mirror_gain_cmd[0].settings().actuator() = gains_cmd[1].settings().actuator();
+    // copy the gains from actuator[1] (shoulder1) to the double shoulder actuator
+    hebi::GroupCommand gains_cmd(7);
+    gains_cmd.readGains(ros::package::getPath(gains_package) + std::string("/") + gains_file);
+    hebi::GroupCommand mirror_gain_cmd(1);
+    mirror_gain_cmd[0].settings().actuator().positionGains().kP().set(gains_cmd[1].settings().actuator().positionGains().kP().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().kI().set(gains_cmd[1].settings().actuator().positionGains().kI().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().kD().set(gains_cmd[1].settings().actuator().positionGains().kD().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().feedForward().set(gains_cmd[1].settings().actuator().positionGains().feedForward().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().deadZone().set(gains_cmd[1].settings().actuator().positionGains().deadZone().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().iClamp().set(gains_cmd[1].settings().actuator().positionGains().iClamp().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().punch().set(gains_cmd[1].settings().actuator().positionGains().punch().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().minTarget().set(gains_cmd[1].settings().actuator().positionGains().minTarget().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().maxTarget().set(gains_cmd[1].settings().actuator().positionGains().maxTarget().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().targetLowpass().set(gains_cmd[1].settings().actuator().positionGains().targetLowpass().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().minOutput().set(gains_cmd[1].settings().actuator().positionGains().minOutput().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().maxOutput().set(gains_cmd[1].settings().actuator().positionGains().maxOutput().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().outputLowpass().set(gains_cmd[1].settings().actuator().positionGains().outputLowpass().get());
+    mirror_gain_cmd[0].settings().actuator().positionGains().dOnError().set(gains_cmd[1].settings().actuator().positionGains().dOnError().get());
+
+    mirror_gain_cmd[0].settings().actuator().velocityGains().kP().set(gains_cmd[1].settings().actuator().velocityGains().kP().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().kI().set(gains_cmd[1].settings().actuator().velocityGains().kI().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().kD().set(gains_cmd[1].settings().actuator().velocityGains().kD().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().feedForward().set(gains_cmd[1].settings().actuator().velocityGains().feedForward().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().deadZone().set(gains_cmd[1].settings().actuator().velocityGains().deadZone().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().iClamp().set(gains_cmd[1].settings().actuator().velocityGains().iClamp().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().punch().set(gains_cmd[1].settings().actuator().velocityGains().punch().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().minTarget().set(gains_cmd[1].settings().actuator().velocityGains().minTarget().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().maxTarget().set(gains_cmd[1].settings().actuator().velocityGains().maxTarget().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().targetLowpass().set(gains_cmd[1].settings().actuator().velocityGains().targetLowpass().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().minOutput().set(gains_cmd[1].settings().actuator().velocityGains().minOutput().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().maxOutput().set(gains_cmd[1].settings().actuator().velocityGains().maxOutput().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().outputLowpass().set(gains_cmd[1].settings().actuator().velocityGains().outputLowpass().get());
+    mirror_gain_cmd[0].settings().actuator().velocityGains().dOnError().set(gains_cmd[1].settings().actuator().velocityGains().dOnError().get());
+
+    mirror_gain_cmd[0].settings().actuator().effortGains().kP().set(gains_cmd[1].settings().actuator().effortGains().kP().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().kI().set(gains_cmd[1].settings().actuator().effortGains().kI().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().kD().set(gains_cmd[1].settings().actuator().effortGains().kD().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().feedForward().set(gains_cmd[1].settings().actuator().effortGains().feedForward().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().deadZone().set(gains_cmd[1].settings().actuator().effortGains().deadZone().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().iClamp().set(gains_cmd[1].settings().actuator().effortGains().iClamp().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().punch().set(gains_cmd[1].settings().actuator().effortGains().punch().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().minTarget().set(gains_cmd[1].settings().actuator().effortGains().minTarget().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().maxTarget().set(gains_cmd[1].settings().actuator().effortGains().maxTarget().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().targetLowpass().set(gains_cmd[1].settings().actuator().effortGains().targetLowpass().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().minOutput().set(gains_cmd[1].settings().actuator().effortGains().minOutput().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().maxOutput().set(gains_cmd[1].settings().actuator().effortGains().maxOutput().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().outputLowpass().set(gains_cmd[1].settings().actuator().effortGains().outputLowpass().get());
+    mirror_gain_cmd[0].settings().actuator().effortGains().dOnError().set(gains_cmd[1].settings().actuator().effortGains().dOnError().get());
+
+    if (!double_group->sendCommand(mirror_gain_cmd)) {
+      ROS_ERROR("Could not set gains for double shoulder. Attempting to continue.");
+    }
   }
 
   // Get the home position, defaulting to (nearly) zero
@@ -578,7 +641,7 @@ int main(int argc, char ** argv) {
       double_cmd[0].actuator().effort().set(-0.5 * cmd[1].actuator().effort().get());
       cmd[1].actuator().effort().set(0.5 * cmd[1].actuator().effort().get());
       
-      if (!arm->send() && double_group->sendCommand(double_cmd))
+      if (!arm->send() || !double_group->sendCommand(double_cmd))
         ROS_WARN("Error Sending Commands -- Check Connection");
     }
 
