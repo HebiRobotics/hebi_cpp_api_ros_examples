@@ -5,6 +5,7 @@
 #include <actionlib/server/action_server.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <sensor_msgs/JointState.h>
+#include <geometry_msgs/Inertia.h>
 
 #include "hebi_cpp_api/robot_model.hpp"
 #include "hebi_cpp_api/arm/arm.hpp"
@@ -27,7 +28,8 @@ public:
                      boost::bind(&MoveItArmNode::receiveJointTrajectory, this, _1),
                      boost::bind(&MoveItArmNode::cancelJointTrajectory, this, _1),
                      false),
-      joint_state_publisher_(node.advertise<sensor_msgs::JointState>("joint_states", 100)) {
+      joint_state_publisher_(node.advertise<sensor_msgs::JointState>("joint_states", 100)),
+      center_of_mass_publisher_(node.advertise<geometry_msgs::Inertia>("inertia", 100)) {
 
     auto num_modules = joint_names.size();
     joint_state_message_.name = joint_names;
@@ -165,6 +167,30 @@ public:
     joint_state_message_.header.stamp = t;
     joint_state_publisher_.publish(joint_state_message_);
 
+    // compute arm CoM
+    auto& model = arm_.robotModel();
+    Eigen::VectorXd masses;
+    robot_model::Matrix4dVector frames;
+    model.getMasses(masses);
+    model.getFK(robot_model::FrameType::CenterOfMass, pos, frames);
+
+    center_of_mass_message_.m = 0.0;
+    Eigen::Vector3d weighted_sum_com = Eigen::Vector3d::Zero();
+    for(int i = 0; i < model.getFrameCount(robot_model::FrameType::CenterOfMass); ++i) {
+      center_of_mass_message_.m += masses(i);
+      frames[i] *= masses(i);
+      weighted_sum_com(0) += frames[i](0, 3);
+      weighted_sum_com(1) += frames[i](1, 3);
+      weighted_sum_com(2) += frames[i](2, 3);
+    }
+    weighted_sum_com /= center_of_mass_message_.m;
+
+    center_of_mass_message_.com.x = weighted_sum_com(0);
+    center_of_mass_message_.com.y = weighted_sum_com(1);
+    center_of_mass_message_.com.z = weighted_sum_com(2);
+
+    center_of_mass_publisher_.publish(center_of_mass_message_);
+
     return res;
   }
 
@@ -178,8 +204,10 @@ private:
   actionlib::ActionServer<control_msgs::FollowJointTrajectoryAction> action_server_;
 
   ::ros::Publisher joint_state_publisher_;
+  ::ros::Publisher center_of_mass_publisher_;
 
   sensor_msgs::JointState joint_state_message_;
+  geometry_msgs::Inertia center_of_mass_message_;
 };
 
 } // namespace ros

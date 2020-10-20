@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- 6-DoF Arm -->
 <robot version="1.2.0">
-    
+
   <actuator type="X8-9"/>
   <bracket type="X5HeavyRightOutside"/>
   <actuator type="X8-16"/>
@@ -14,5 +14,5 @@
   <bracket type="X5LightRight"/>
   <actuator type="X5-1"/>
   <end-effector type="X5Parallel"/>
-    
+
 </robot>
