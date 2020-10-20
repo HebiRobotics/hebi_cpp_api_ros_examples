@@ -26,7 +26,7 @@ namespace ros {
 
 class ArmNode {
 public:
-  ArmNode(::ros::NodeHandle* nh, hebi::experimental::arm::Arm& arm, const Eigen::VectorXd& home_position, std::vector<std::string> link_names) : nh_(*nh),
+  ArmNode(::ros::NodeHandle* nh, arm::Arm& arm, const Eigen::VectorXd& home_position, std::vector<std::string> link_names) : nh_(*nh),
        arm_(arm),
        home_position_(home_position),
        action_server_(*nh, "motion", boost::bind(&ArmNode::startArmMotion, this, _1), false),
@@ -294,7 +294,7 @@ public:
   }
   
 private:
-  hebi::experimental::arm::Arm& arm_;
+  arm::Arm& arm_;
 
   // The end effector location that this arm will target (NaN indicates
   // unitialized state, and will be set from feedback during first
