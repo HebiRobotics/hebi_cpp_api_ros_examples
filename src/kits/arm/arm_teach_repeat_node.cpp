@@ -6,6 +6,9 @@
 
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/robot_model.hpp"
+#include "hebi_cpp_api/arm/arm.hpp"
+
+namespace arm = hebi::experimental::arm;
 
 namespace hebi {
 namespace ros {
@@ -55,7 +58,7 @@ void TeachRepeatNode::setCompliantMode(std_msgs::Bool msg) {
     ROS_INFO("Resuming active command"); 
     auto t = ::ros::Time::now().toSec();
     auto last_position = arm_.lastFeedback().getPosition();
-    arm_.setGoal(hebi::experimental::arm::Goal::createFromPosition(last_position));
+    arm_.setGoal(arm::Goal::createFromPosition(last_position));
     target_xyz_ = arm_.FK(last_position);
   }
 }
@@ -86,7 +89,7 @@ void TeachRepeatNode::offsetWaypointPlayback(hebi_cpp_api_examples::OffsetPlayba
   position_cmd = arm_.solveIK(position_cmd, target_xyz_);
 
   // Replan:
-  arm_.setGoal(hebi::experimental::arm::Goal::createFromPosition(position_cmd));
+  arm_.setGoal(arm::Goal::createFromPosition(position_cmd));
 }
 
 void TeachRepeatNode::saveWaypoint(hebi_cpp_api_examples::SaveWaypoint msg) {
@@ -231,7 +234,7 @@ void TeachRepeatNode::playPath(size_t path_index) {
   waypoint_playback_offset_ = Eigen::Vector3d::Zero();
 
   auto t = ::ros::Time::now().toSec();
-  arm_.setGoal(hebi::experimental::arm::Goal::createFromPositions(times, wp_matrix));
+  arm_.setGoal(arm::Goal::createFromPositions(times, wp_matrix));
   ROS_INFO_STREAM("Start path playback through " << num_waypoints << " waypoints");
 }
 
@@ -242,7 +245,7 @@ void TeachRepeatNode::goToWaypoint(const Eigen::VectorXd& joint_angles) {
   joints = offsetJoints(joints, waypoint_playback_offset_); 
 
   target_xyz_ = arm_.FK(joints);
-  arm_.setGoal(hebi::experimental::arm::Goal::createFromPositions(joints));
+  arm_.setGoal(arm::Goal::createFromPositions(joints));
   ROS_INFO_STREAM("Moving to waypoint");
 }
 
@@ -309,7 +312,7 @@ int main(int argc, char ** argv) {
   /////////////////// Initialize arm ///////////////////
 
   // Create arm
-  hebi::experimental::arm::Arm::Params params;
+  arm::Arm::Params params;
   params.families_ = families;
   params.names_ = names;
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
@@ -318,9 +321,9 @@ int main(int argc, char ** argv) {
     return ros::Time::now().toSec() - start_time;
   };
 
-  auto arm = hebi::experimental::arm::Arm::create(params);
+  auto arm = arm::Arm::create(params);
   for (int num_tries = 0; num_tries < 3; num_tries++) {
-    arm = hebi::experimental::arm::Arm::create(params);
+    arm = arm::Arm::create(params);
     if (arm) {
       break;
     }
@@ -422,7 +425,7 @@ int main(int argc, char ** argv) {
 
   arm->update();
   teach_repeat_node.update(t);
-  arm->setGoal(hebi::experimental::arm::Goal::createFromPosition(home_position));
+  arm->setGoal(arm::Goal::createFromPosition(home_position));
 
   while (ros::ok()) {
     // Update feedback, and command the arm to move along its planned path

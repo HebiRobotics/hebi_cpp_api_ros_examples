@@ -9,6 +9,8 @@
 #include "hebi_cpp_api/robot_model.hpp"
 #include "hebi_cpp_api/arm/arm.hpp"
 
+namespace arm = hebi::experimental::arm;
+
 namespace hebi {
 namespace ros {
 
@@ -18,7 +20,7 @@ namespace ros {
 // FollowJointTrajectory (on hebi_arm_controller/follow_joint_trajectory)
 class MoveItArmNode {
 public:
-  MoveItArmNode(hebi::experimental::arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> joint_names)
+  MoveItArmNode(arm::Arm& arm, ::ros::NodeHandle& node, std::vector<std::string> joint_names)
     : arm_(arm),
       node_(node),
       action_server_(node, "hebi_arm_controller/follow_joint_trajectory",
@@ -51,7 +53,7 @@ public:
       for (size_t i = 0; i < joint_state_message_.position.size(); ++i) {
         stop_pos[i] = joint_state_message_.position[i];
       }
-      arm_.setGoal(hebi::experimental::arm::Goal::createFromPosition(stop_pos));
+      arm_.setGoal(arm::Goal::createFromPosition(stop_pos));
     } else {
       ROS_WARN("Attempted to cancel trajectory which is NOT the current trajectory");
     }
@@ -106,7 +108,7 @@ public:
       }
     }
 
-    auto arm_goal = hebi::experimental::arm::Goal::createFromWaypoints(times, positions, velocities, accelerations);
+    auto arm_goal = arm::Goal::createFromWaypoints(times, positions, velocities, accelerations);
     ROS_INFO("Setting Arm Goal");
     arm_.setGoal(arm_goal);
   }
@@ -167,7 +169,7 @@ public:
   }
 
 private:
-  hebi::experimental::arm::Arm& arm_;
+  arm::Arm& arm_;
   ::ros::NodeHandle& node_;
 
   actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> trajectory_goal_;
@@ -240,7 +242,7 @@ int main(int argc, char ** argv) {
   /////////////////// Initialize arm ///////////////////
 
   // Create arm
-  hebi::experimental::arm::Arm::Params params;
+  arm::Arm::Params params;
   params.families_ = families;
   params.names_ = names;
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
@@ -249,9 +251,9 @@ int main(int argc, char ** argv) {
     return ros::Time::now().toSec() - start_time;
   }; 
 
-  auto arm = hebi::experimental::arm::Arm::create(params);
+  auto arm = arm::Arm::create(params);
   for (int num_tries = 0; num_tries < 3; num_tries++) {
-    arm = hebi::experimental::arm::Arm::create(params);
+    arm = arm::Arm::create(params);
     if (arm) {
       break;
     }
@@ -306,7 +308,7 @@ int main(int argc, char ** argv) {
   auto t = ros::Time::now();
 
   arm_node.update(t);
-  arm->setGoal(hebi::experimental::arm::Goal::createFromPosition(home_position));
+  arm->setGoal(arm::Goal::createFromPosition(home_position));
 
   auto prev_t = t;
   while (ros::ok()) {
@@ -320,7 +322,7 @@ int main(int argc, char ** argv) {
     // If a simulator reset has occured, go back to the home position.
     if (t < prev_t) {
       std::cout << "Resetting action server and returning to home pose after simulation reset" << std::endl;
-      arm->setGoal(hebi::experimental::arm::Goal::createFromPosition(home_position));
+      arm->setGoal(arm::Goal::createFromPosition(home_position));
     }
     prev_t = t;
 

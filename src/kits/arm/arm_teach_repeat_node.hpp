@@ -13,12 +13,9 @@
 #include "src/util/waypoint.hpp"
 #include "src/util/path.hpp"
 
+namespace arm = hebi::experimental::arm;
+
 namespace hebi {
-
-namespace arm {
-class Arm;  
-}
-
 namespace ros {
 
 // A class that can be used as the basis of a ROS node for a teach/repeat demonstration.
@@ -29,7 +26,7 @@ namespace ros {
 // itself.
 class TeachRepeatNode {
 public:
-  TeachRepeatNode(hebi::experimental::arm::Arm& arm) : arm_(arm) { }
+  TeachRepeatNode(arm::Arm& arm) : arm_(arm) { }
 
   ////////////////////////////////////////////////////////
   // Callback functions for ROS subscribers:
@@ -58,7 +55,7 @@ public:
   ////////////////////////////////////////////////////////
 
   // Updates any actively-being-constructed paths.
-  bool update(double t);
+  void update(double t);
 
   // Add path (e.g., during initialization)
   void addPath(const Path& path) { paths_.push_back(path); }
