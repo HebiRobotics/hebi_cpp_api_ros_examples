@@ -8,15 +8,14 @@
 #include "hebi_cpp_api_examples/EndPath.h"
 #include "hebi_cpp_api_examples/OffsetPlayback.h"
 
+#include "hebi_cpp_api/arm/arm.hpp"
+
 #include "src/util/waypoint.hpp"
 #include "src/util/path.hpp"
 
+namespace arm = hebi::experimental::arm;
+
 namespace hebi {
-
-namespace arm {
-class Arm;  
-}
-
 namespace ros {
 
 // A class that can be used as the basis of a ROS node for a teach/repeat demonstration.
@@ -56,7 +55,7 @@ public:
   ////////////////////////////////////////////////////////
 
   // Updates any actively-being-constructed paths.
-  bool update(double t);
+  void update(double t);
 
   // Add path (e.g., during initialization)
   void addPath(const Path& path) { paths_.push_back(path); }
@@ -68,7 +67,7 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 private:
-  arm::Arm& arm_;
+  hebi::experimental::arm::Arm& arm_;
 
   // The end effector location that this arm will nominally target (NaN indicates
   // unitialized state, and will be set from feedback during first

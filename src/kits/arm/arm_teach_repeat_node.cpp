@@ -6,8 +6,9 @@
 
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/robot_model.hpp"
+#include "hebi_cpp_api/arm/arm.hpp"
 
-#include "src/util/arm.hpp"
+namespace arm = hebi::experimental::arm;
 
 namespace hebi {
 namespace ros {
@@ -57,8 +58,8 @@ void TeachRepeatNode::setCompliantMode(std_msgs::Bool msg) {
     ROS_INFO("Resuming active command"); 
     auto t = ::ros::Time::now().toSec();
     auto last_position = arm_.lastFeedback().getPosition();
-    arm_.setGoal({last_position});
-    target_xyz_ = arm_.FK3Dof(last_position);
+    arm_.setGoal(arm::Goal::createFromPosition(last_position));
+    target_xyz_ = arm_.FK(last_position);
   }
 }
 
@@ -72,7 +73,7 @@ void TeachRepeatNode::offsetWaypointPlayback(hebi_cpp_api_examples::OffsetPlayba
 
   // Initialize target from feedback as necessary
   if (!isTargetInitialized())
-    target_xyz_ = arm_.FK3Dof(position_cmd);
+    target_xyz_ = arm_.FK(position_cmd);
 
   // Update stored target position:
   target_xyz_.x() += msg.offset.x;
@@ -85,10 +86,10 @@ void TeachRepeatNode::offsetWaypointPlayback(hebi_cpp_api_examples::OffsetPlayba
   waypoint_playback_offset_.z() += msg.offset.z;
 
   // Plan to this point from the last commanded position for smooth motion
-  position_cmd = arm_.solveIK3Dof(position_cmd, target_xyz_);
+  position_cmd = arm_.solveIK(position_cmd, target_xyz_);
 
   // Replan:
-  arm_.setGoal({position_cmd});
+  arm_.setGoal(arm::Goal::createFromPosition(position_cmd));
 }
 
 void TeachRepeatNode::saveWaypoint(hebi_cpp_api_examples::SaveWaypoint msg) {
@@ -194,7 +195,7 @@ void TeachRepeatNode::startPlayback(hebi_cpp_api_examples::Playback msg) {
   }
 }
 
-bool TeachRepeatNode::update(double t) {
+void TeachRepeatNode::update(double t) {
   if (constructing_path_ && t >= last_path_point_time_ + path_dt_) {
     currently_constructing_path_.push_back(arm_.lastFeedback().getPosition());
     last_path_point_time_ = t;
@@ -205,10 +206,10 @@ Eigen::VectorXd TeachRepeatNode::offsetJoints(const Eigen::VectorXd& joint_angle
   // Do FK to get current point, then offset and do IK:
   Eigen::Vector3d xyz;
   Eigen::Matrix3d orientation;
-  arm_.FK6Dof(joint_angles, xyz, orientation);
+  arm_.FK(joint_angles, xyz, orientation);
 
   xyz += xyz_offset;
-  return arm_.solveIK6Dof(joint_angles, xyz, orientation);
+  return arm_.solveIK(joint_angles, xyz, orientation);
 }
 
 void TeachRepeatNode::playPath(size_t path_index) {
@@ -229,11 +230,11 @@ void TeachRepeatNode::playPath(size_t path_index) {
   }
   
   // Update stored target position, based on final joint angles.
-  target_xyz_ = arm_.FK3Dof(wp_matrix.rightCols<1>());
+  target_xyz_ = arm_.FK(wp_matrix.rightCols<1>());
   waypoint_playback_offset_ = Eigen::Vector3d::Zero();
 
   auto t = ::ros::Time::now().toSec();
-  arm_.setGoal({times, wp_matrix});
+  arm_.setGoal(arm::Goal::createFromPositions(times, wp_matrix));
   ROS_INFO_STREAM("Start path playback through " << num_waypoints << " waypoints");
 }
 
@@ -243,8 +244,8 @@ void TeachRepeatNode::goToWaypoint(const Eigen::VectorXd& joint_angles) {
   auto joints = joint_angles;
   joints = offsetJoints(joints, waypoint_playback_offset_); 
 
-  target_xyz_ = arm_.FK3Dof(joints);
-  arm_.setGoal({joints});
+  target_xyz_ = arm_.FK(joints);
+  arm_.setGoal(arm::Goal::createFromPositions(joints));
   ROS_INFO_STREAM("Moving to waypoint");
 }
 
@@ -311,14 +312,18 @@ int main(int argc, char ** argv) {
   /////////////////// Initialize arm ///////////////////
 
   // Create arm
-  hebi::arm::Arm::Params params;
+  arm::Arm::Params params;
   params.families_ = families;
   params.names_ = names;
   params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
+  params.get_current_time_s_ = []() {
+    static double start_time = ros::Time::now().toSec();
+    return ros::Time::now().toSec() - start_time;
+  };
 
-  auto arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+  auto arm = arm::Arm::create(params);
   for (int num_tries = 0; num_tries < 3; num_tries++) {
-    arm = hebi::arm::Arm::create(ros::Time::now().toSec(), params);
+    arm = arm::Arm::create(params);
     if (arm) {
       break;
     }
@@ -412,19 +417,21 @@ int main(int argc, char ** argv) {
     node.subscribe<hebi_cpp_api_examples::OffsetPlayback>("offset_playback", 50, &hebi::ros::TeachRepeatNode::offsetWaypointPlayback, &teach_repeat_node);
 
   /////////////////// Main Loop ///////////////////
-
+  //
   // We update with a current timestamp so the "setGoal" function
   // is planning from the correct time for a smooth start
+
   auto t = ros::Time::now().toSec();
-  arm->update(t);
+
+  arm->update();
   teach_repeat_node.update(t);
-  arm->setGoal({home_position});
+  arm->setGoal(arm::Goal::createFromPosition(home_position));
 
   while (ros::ok()) {
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
     t = ros::Time::now().toSec();
-    if (!arm->update(t))
+    if (!arm->update())
       ROS_WARN("Error Getting Feedback -- Check Connection");
     else if (!arm->send())
       ROS_WARN("Error Sending Commands -- Check Connection");
