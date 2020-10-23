@@ -7,6 +7,7 @@
 #include <geometry_msgs/Point.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <sensor_msgs/JointState.h>
+#include <geometry_msgs/Inertia.h>
 #include <std_srvs/SetBool.h>
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
@@ -36,7 +37,8 @@ public:
        compliant_mode_service_(nh->advertiseService("compliance_mode", &ArmNode::setCompliantMode, this)),
        ik_seed_service_(nh->advertiseService("set_ik_seed", &hebi::ros::ArmNode::handleIKSeedService, this)),
        joint_waypoint_subscriber_(nh->subscribe<trajectory_msgs::JointTrajectory>("joint_waypoints", 50, &ArmNode::updateJointWaypoints, this)),
-       arm_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50))  {
+       arm_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50)),
+       center_of_mass_publisher_(nh->advertise<geometry_msgs::Inertia>("inertia", 100)) {
 
     //TODO: Figure out a way to get link names from the arm, so it doesn't need to be input separately
     state_msg_.name = link_names;
@@ -291,6 +293,30 @@ public:
     VectorXd::Map(&state_msg_.effort[0], eff.size()) = eff;
 
     arm_state_pub_.publish(state_msg_);
+
+    // compute arm CoM
+    auto& model = arm_.robotModel();
+    Eigen::VectorXd masses;
+    robot_model::Matrix4dVector frames;
+    model.getMasses(masses);
+    model.getFK(robot_model::FrameType::CenterOfMass, pos, frames);
+
+    center_of_mass_message_.m = 0.0;
+    Eigen::Vector3d weighted_sum_com = Eigen::Vector3d::Zero();
+    for(int i = 0; i < model.getFrameCount(robot_model::FrameType::CenterOfMass); ++i) {
+      center_of_mass_message_.m += masses(i);
+      frames[i] *= masses(i);
+      weighted_sum_com(0) += frames[i](0, 3);
+      weighted_sum_com(1) += frames[i](1, 3);
+      weighted_sum_com(2) += frames[i](2, 3);
+    }
+    weighted_sum_com /= center_of_mass_message_.m;
+
+    center_of_mass_message_.com.x = weighted_sum_com(0);
+    center_of_mass_message_.com.y = weighted_sum_com(1);
+    center_of_mass_message_.com.z = weighted_sum_com(2);
+
+    center_of_mass_publisher_.publish(center_of_mass_message_);
   }
   
 private:
@@ -312,6 +338,7 @@ private:
   ::ros::NodeHandle nh_;
 
   sensor_msgs::JointState state_msg_;
+  geometry_msgs::Inertia center_of_mass_message_;
 
   actionlib::SimpleActionServer<hebi_cpp_api_examples::ArmMotionAction> action_server_;
 
@@ -321,6 +348,7 @@ private:
   ::ros::Subscriber joint_waypoint_subscriber_;
 
   ::ros::Publisher arm_state_pub_;
+  ::ros::Publisher center_of_mass_publisher_;
 
   ::ros::ServiceServer compliant_mode_service_;
   ::ros::ServiceServer ik_seed_service_;
