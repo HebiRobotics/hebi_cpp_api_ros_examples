@@ -89,7 +89,6 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   .
-  src/kits/daisy
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
@@ -147,12 +146,14 @@ add_executable(hexapod_control src/kits/daisy/hexapod_control.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/xml_util/pugixml.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/xml_util/xml_helpers.cpp
 )
+target_include_directories(hexapod_control PRIVATE src/kits/daisy)
 add_dependencies(hexapod_control ${catkin_EXPORTED_TARGETS})
 target_link_libraries(hexapod_control ${catkin_LIBRARIES})
 
 add_executable(hexapod_controller src/kits/daisy/controller_node.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/input/mobile_io.cpp
 )
+target_include_directories(hexapod_control PRIVATE src/kits/daisy)
 add_dependencies(hexapod_controller ${catkin_EXPORTED_TARGETS})
 target_link_libraries(hexapod_controller ${catkin_LIBRARIES})
 
