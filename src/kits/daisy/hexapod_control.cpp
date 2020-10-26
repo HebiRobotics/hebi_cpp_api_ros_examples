@@ -118,6 +118,9 @@ int main(int argc, char** argv) {
     hexapod = hebi::Hexapod::create(params, hex_errors);
   }
   std::cout << "Found robot -- starting control program.\n";
+  if (hexapod && !hexapod->setGains() && !hexapod->setGains()) {
+    ROS_WARN("Unable to set hexapod gains, things may behave strangely");
+  }
 
   /////////////////////// Initialize ROS Interface //////////////////////
 
