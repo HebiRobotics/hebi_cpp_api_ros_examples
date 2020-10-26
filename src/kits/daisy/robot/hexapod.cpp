@@ -32,7 +32,7 @@ std::unique_ptr<Hexapod> Hexapod::createPartial(const HexapodParameters& params,
       names.push_back("L" + std::to_string(i + 1) + "_J3_elbow");
     }
   }
-  std::vector<std::string> family = { "Daisy" };
+  std::vector<std::string> family = { "Lily" };
 
   long timeout_ms = 4000; // use a 4 second timeout
   auto group = lookup.getGroupFromNames(family, names, timeout_ms);
@@ -58,7 +58,7 @@ std::unique_ptr<Hexapod> Hexapod::createPartial(const HexapodParameters& params,
   std::shared_ptr<hebi::Group> log_group_io;
   if (params.logging_enabled_)
   {
-    log_group_io = lookup.getGroupFromNames({"Daisy"}, {"mobileIO"}, timeout_ms);
+    log_group_io = lookup.getGroupFromNames({"Lily"}, {"mobileIO"}, timeout_ms);
     log_group_modules = lookup.getGroupFromNames(family, names, timeout_ms);
   }
   return std::unique_ptr<Hexapod>(new Hexapod(group, log_group_io, log_group_modules, params, real_legs, hex_errors));
