@@ -89,6 +89,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   .
+  src/kits/daisy
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
@@ -138,6 +139,23 @@ add_executable(gripper_moveit_node src/kits/arm/gripper_moveit_node.cpp)
 add_dependencies(gripper_moveit_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_moveit_node ${catkin_LIBRARIES} )
 
+add_executable(hexapod_control src/kits/daisy/hexapod_control.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/robot/leg.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/robot/hexapod.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/robot/step.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/robot/hexapod_parameters.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/xml_util/pugixml.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/xml_util/xml_helpers.cpp
+)
+add_dependencies(hexapod_control ${catkin_EXPORTED_TARGETS})
+target_link_libraries(hexapod_control ${catkin_LIBRARIES})
+
+add_executable(hexapod_controller src/kits/daisy/controller_node.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/input/mobile_io.cpp
+)
+add_dependencies(hexapod_controller ${catkin_EXPORTED_TARGETS})
+target_link_libraries(hexapod_controller ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############
@@ -157,6 +175,30 @@ install(PROGRAMS src/integrations/clearpath_jackal/jackal_arm_teleop.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}/scripts
 )
 
+## Mark other files for installation (e.g. launch and bag files, etc.)
+install(FILES
+  launch/daisy.launch
+  data/hexapod/gains18.xml
+  data/hexapod/gains3.xml
+  data/hexapod/hex_config.xml
+  data/hexapod/left.hrdf
+  data/hexapod/right.hrdf
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+## I don't think this is the _right_ way to do this, but it works...
+file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/hexapod/gains18.xml
+      DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/hexapod/gains3.xml
+      DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/hexapod/hex_config.xml
+      DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/hexapod/left.hrdf
+      DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/hexapod/right.hrdf
+      DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_BIN_DESTINATION})
+
+
 install(TARGETS
   arm_moveit_node
   arm_node
@@ -169,5 +211,7 @@ install(TARGETS
   omni_base_controller_node
   omni_base_node
   rosie_teach_repeat_controller_node
+  hexapod_control
+  hexapod_controller
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
