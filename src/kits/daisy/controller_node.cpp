@@ -24,7 +24,7 @@ int main(int argc, char ** argv) {
   ros::NodeHandle node;
 
   // Create mobile IO connection
-  auto io = hebi::MobileIO::create("HEBI", "Mobile IO");
+  auto io = hebi::MobileIO::create("Daisy", "mobileIO");
   // Configure the mobile IO app; keep trying until we succeed for each of these!
   while (!io->setSnap(3, 0)) { ROS_WARN("Error while setting Mobile IO state"); }
   while (!io->setButtonMode(1, hebi::MobileIO::ButtonMode::Toggle)) { ROS_WARN("Error while setting Mobile IO state"); }
