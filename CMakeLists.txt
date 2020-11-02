@@ -130,6 +130,10 @@ add_executable(arm_moveit_node src/kits/arm/arm_moveit_node.cpp)
 add_dependencies(arm_moveit_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(arm_moveit_node ${catkin_LIBRARIES} )
 
+add_executable(arm_ar_node src/kits/arm/arm_ar_node.cpp)
+add_dependencies(arm_ar_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(arm_ar_node ${catkin_LIBRARIES} )
+
 add_executable(gripper_node src/kits/arm/gripper_node.cpp)
 add_dependencies(gripper_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gripper_node ${catkin_LIBRARIES} )

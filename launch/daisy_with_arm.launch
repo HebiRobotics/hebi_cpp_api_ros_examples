@@ -1,0 +1,18 @@
+<launch>
+    <!--
+    <group ns="lily">
+        <node pkg="hebi_cpp_api_examples" type="hexapod_control" name="hexapod_control" output="screen" required="true"/>
+        <node pkg="hebi_cpp_api_examples" type="hexapod_controller" name="controller" output="screen" required="true"/>
+    </group>
+    -->
+    <group ns="arm">
+        <rosparam>
+            ik_seed: [ 0.6, 0.15, -2.85, 0.01, -1.5708, 0.01 ]
+        </rosparam>
+        <!-- Parameters for the module names, gains, hrdf, etc -->
+        <arg name="config_dir" default="$(find hebi_cpp_api_examples)/config" />
+        <rosparam file="$(arg config_dir)/A-2240-06_params.yaml" command="load" />
+
+        <node pkg="hebi_cpp_api_examples" type="arm_ar_node" name="arm_ar_node" output="screen"/>
+    </group>
+</launch>
