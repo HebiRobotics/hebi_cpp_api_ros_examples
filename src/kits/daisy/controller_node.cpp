@@ -27,7 +27,7 @@ int main(int argc, char ** argv) {
   auto io = hebi::MobileIO::create("Lily", "mobileIO");
   // Configure the mobile IO app; keep trying until we succeed for each of these!
   while (!io->setSnap(3, 0)) { ROS_WARN("Error while setting Mobile IO state"); }
-  while (!io->setButtonMode(1, hebi::MobileIO::ButtonMode::Toggle)) { ROS_WARN("Error while setting Mobile IO state"); }
+  while (!io->setButtonMode(4, hebi::MobileIO::ButtonMode::Toggle)) { ROS_WARN("Error while setting Mobile IO state"); }
   while (!io->setButtonOutput(4, 1)) { ROS_WARN("Error while setting Mobile IO state"); }
   while (!io->setButtonOutput(8, 1)) { ROS_WARN("Error while setting Mobile IO state"); }
 
