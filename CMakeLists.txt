@@ -94,11 +94,11 @@ include_directories(
 )
 
 # Different nodes for the arm kits
-add_executable(mecanum_base_node src/kits/base/mecanum_base_node.cpp src/util/mecanum_base.cpp src/util/odom_publisher.cpp)
+add_executable(mecanum_base_node src/kits/base/mecanum_base_node.cpp src/util/mecanum_base.cpp src/util/base_trajectory.cpp src/util/odom_publisher.cpp)
 add_dependencies(mecanum_base_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(mecanum_base_node ${catkin_LIBRARIES} )
 
-add_executable(omni_base_node src/kits/base/omni_base_node.cpp src/util/omni_base.cpp src/util/odom_publisher.cpp)
+add_executable(omni_base_node src/kits/base/omni_base_node.cpp src/util/omni_base.cpp src/util/base_trajectory.cpp src/util/odom_publisher.cpp)
 add_dependencies(omni_base_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(omni_base_node ${catkin_LIBRARIES} )
 
@@ -110,7 +110,7 @@ add_executable(rosie_teach_repeat_controller_node src/kits/rosie/teach_repeat_co
 add_dependencies(rosie_teach_repeat_controller_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rosie_teach_repeat_controller_node ${catkin_LIBRARIES} )
 
-add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp src/util/diff_drive.cpp)
+add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp src/util/diff_drive.cpp src/util/base_trajectory.cpp)
 add_dependencies(diff_drive_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 

@@ -10,6 +10,8 @@
 
 #include "Eigen/Dense"
 
+#include "base_trajectory.hpp"
+
 /**
  * diff_drive.hpp
  *
@@ -23,22 +25,18 @@ namespace hebi {
 // Note: base trajectory doesn't allow for smooth replanning, because that would be...difficult.  This
 // just represents the raw motion of the joints (left, right).
 
-class DiffDriveTrajectory {
+class DiffDriveTrajectory: public BaseTrajectory {
 public:
   static DiffDriveTrajectory create(const Eigen::VectorXd& dest_positions, double t_now);
 
-  void getState(double t_now, 
-    Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
+  // why is this necessary?
+  using BaseTrajectory::replan;
 
   void replan(
     double t_now,
     const Eigen::MatrixXd& new_positions,
     const Eigen::MatrixXd& new_velocities,
     const Eigen::MatrixXd& new_accelerations);
-
-  void replan(
-    double t_now,
-    const Eigen::MatrixXd& new_positions);
 
   // Heuristic to get the timing of the waypoints. This function can be
   // modified to add custom waypoint timing.
@@ -47,18 +45,11 @@ public:
     const Eigen::MatrixXd& velocities,
     const Eigen::MatrixXd& accelerations);
 
-  std::shared_ptr<hebi::trajectory::Trajectory> getTraj() { return trajectory_; }
-  double getTrajStartTime() { return trajectory_start_time_; }
-  double getTrajEndTime() { return trajectory_start_time_ + trajectory_->getDuration(); }
-
 private:
   // This is private, because we want to ensure the DiffDriveTrajectory is always
   // initialized correctly after creation; use the "create" factory method
   // instead.
   DiffDriveTrajectory() = default;
-      
-  std::shared_ptr<hebi::trajectory::Trajectory> trajectory_ {};
-  double trajectory_start_time_ {};
 };
 
 class DiffDrive {

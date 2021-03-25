@@ -8,6 +8,8 @@
 #include "hebi_cpp_api/lookup.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
 
+#include "base_trajectory.hpp"
+
 #include "Eigen/Dense"
 
 /**
@@ -27,15 +29,15 @@ namespace hebi {
 // Note: base trajectory doesn't allow for smooth replanning, because that would be...difficult.  It just
 // represents relative motion in (x, y, theta)
 
-class MecanumBaseTrajectory {
+class MecanumBaseTrajectory: public BaseTrajectory {
 public:
   static MecanumBaseTrajectory create(const Eigen::VectorXd& dest_positions, double t_now);
 
-  void getState(double t_now, 
-    Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
-
   // Plan a trajectory to move with a given velocity for the next couple seconds.
   void replanVel(double t_now, const Eigen::Vector3d& target_vel);
+
+  // why is this necessary?
+  using BaseTrajectory::replan;
 
   void replan(
     double t_now,
@@ -43,29 +45,18 @@ public:
     const Eigen::MatrixXd& new_velocities,
     const Eigen::MatrixXd& new_accelerations);
 
-  void replan(
-    double t_now,
-    const Eigen::MatrixXd& new_positions);
-
   // Heuristic to get the timing of the waypoints. This function can be
-// modified to add custom waypoint timing.
+  // modified to add custom waypoint timing.
   Eigen::VectorXd getWaypointTimes(
     const Eigen::MatrixXd& positions,
     const Eigen::MatrixXd& velocities,
     const Eigen::MatrixXd& accelerations);
-
-  std::shared_ptr<hebi::trajectory::Trajectory> getTraj() { return trajectory_; }
-  double getTrajStartTime() { return trajectory_start_time_; }
-  double getTrajEndTime() { return trajectory_start_time_ + trajectory_->getDuration(); }
 
 private:
   // This is private, because we want to ensure the MecanumBaseTrajectory is always
   // initialized correctly after creation; use the "create" factory method
   // instead.
   MecanumBaseTrajectory() = default;
-      
-  std::shared_ptr<hebi::trajectory::Trajectory> trajectory_ {};
-  double trajectory_start_time_ {};
 };
 
 class MecanumBase {
