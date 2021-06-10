@@ -1,5 +1,5 @@
 #include <ros/ros.h>
-#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Twist.h>
 
 #include <hebi_cpp_api_examples/BaseMotionAction.h>
 
@@ -103,6 +103,20 @@ public:
     action_server_->setSucceeded(result); // TODO: set failed?
   }
 
+  // Set the velocity, canceling any active action
+  void updateVelocity(geometry_msgs::Twist cmd_vel) {
+    // Cancel any active action:
+    if (action_server_->isActive())
+      action_server_->setAborted();
+
+    // Replan given the current command
+    Eigen::Vector3d target_vel;
+    target_vel << cmd_vel.linear.x, 0.0, cmd_vel.angular.z;
+    base_.getTrajectory().replanVel(
+      ::ros::Time::now().toSec(),
+      target_vel);
+  }
+
   void setActionServer(actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server) {
     action_server_ = action_server;
   }
@@ -167,6 +181,10 @@ int main(int argc, char ** argv) {
   base_node.setActionServer(&base_motion_action);
 
   base_motion_action.start();
+
+  // Explicitly set the target velocity
+  ros::Subscriber set_velocity_subscriber =
+    node.subscribe<geometry_msgs::Twist>("cmd_vel", 1, &hebi::ros::BaseNode::updateVelocity, &base_node);
 
   /////////////////// Main Loop ///////////////////
 

@@ -30,6 +30,8 @@ public:
   void getState(double t_now, 
     Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
 
+  void replanVel(double t_now, const Eigen::Vector3d& target_vel);
+
   void replan(
     double t_now,
     const Eigen::MatrixXd& new_positions,
@@ -82,6 +84,7 @@ public:
   bool isTrajectoryComplete(double time);
 
   GroupFeedback& getLastFeedback() { return feedback_; }
+  DiffDriveTrajectory& getTrajectory() { return base_trajectory_; }
 
   // Set color (usually before commanding a new trajectory)
   void setColor(Color& color);
