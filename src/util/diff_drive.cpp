@@ -26,7 +26,7 @@ void DiffDriveTrajectory::getState(
   trajectory_->getState(t, &positions, &velocities, &accelerations);
 }
 
-void DiffDriveTrajectory::replanVels(const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities) {
+void DiffDriveTrajectory::replanVels(double t_now, const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities) {
   Eigen::MatrixXd positions(2, 4);
   Eigen::MatrixXd accelerations(2, 4);
 
@@ -46,7 +46,7 @@ void DiffDriveTrajectory::replanVels(const Eigen::VectorXd& times, const Eigen::
   // Create new trajectory
   trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
                   times, positions, &velocities, &accelerations);
-  trajectory_start_time_ = times(0);
+  trajectory_start_time_ = t_now;
 }
   
 // Updates the Base State by planning a trajectory to a given set of joint
@@ -271,14 +271,8 @@ void DiffDrive::startVelControl(double dx, double dtheta, double time) {
   velocities.col(1) = velocities.col(2) = target_vel_wheels;
   velocities.col(3).setZero();
 
-  //std::cout << "------------------------------------------------" << std::endl;
-  //std::cout << "t: " << times(0) << "| v: " << velocities(0, 0) << ", " << velocities(1, 0) << std::endl;
-  //std::cout << "t: " << times(1) << "| v: " << velocities(0, 1) << ", " << velocities(1, 1) << std::endl;
-  //std::cout << "t: " << times(2) << "| v: " << velocities(0, 2) << ", " << velocities(1, 2) << std::endl;
-  //std::cout << "t: " << times(3) << "| v: " << velocities(0, 3) << ", " << velocities(1, 3) << std::endl;
-
   // Create new trajectory
-  base_trajectory_.replanVels(times, velocities);
+  base_trajectory_.replanVels(time, times, velocities);
 }
 
 void DiffDrive::startRotateBy(float theta, double time) {

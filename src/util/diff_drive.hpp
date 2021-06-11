@@ -30,7 +30,7 @@ public:
   void getState(double t_now, 
     Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
 
-  void replanVels(const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities);
+  void replanVels(double t_now, const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities);
 
   void replan(
     double t_now,
