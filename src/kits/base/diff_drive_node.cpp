@@ -186,8 +186,6 @@ int main(int argc, char ** argv) {
 
   /////////////////// Main Loop ///////////////////
 
-  double t_now;
-
   // Main command loop
   while (ros::ok()) {
 

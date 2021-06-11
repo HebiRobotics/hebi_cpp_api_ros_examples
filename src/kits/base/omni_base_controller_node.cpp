@@ -50,9 +50,9 @@ int main(int argc, char ** argv) {
     auto dx = state.axes_[7];
     auto dtheta = -state.axes_[0];
 
-    cmd_vel_msg.linear.x = pow(dx, 3);
-    cmd_vel_msg.linear.y = pow(dy, 3);
-    cmd_vel_msg.angular.z = pow(dtheta, 3) * 2.0;
+    cmd_vel_msg.linear.x = pow(dx, 3) * 0.6;
+    cmd_vel_msg.linear.y = pow(dy, 3) * 0.6;
+    cmd_vel_msg.angular.z = pow(dtheta, 3) * 1.2;
     
     if (send_count == 0)
       cmd_vel_pub.publish(cmd_vel_msg);

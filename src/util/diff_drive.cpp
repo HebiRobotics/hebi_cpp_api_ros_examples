@@ -235,13 +235,11 @@ void DiffDrive::setColor(Color& color) {
 }
 
 void DiffDrive::startVelControl(double dx, double dtheta, double time) {
-  start_wheel_pos_ = feedback_.getPosition();
-
   Eigen::MatrixXd velocities(2, 4);
 
   // One second to get up to velocity, and then keep going for at least 1 second.
   Eigen::VectorXd times(4);
-  times << 0, 0.25, 1, 1.25;
+  times << 0, 0.15, 0.9, 1.2;
 
   // Initial state
 
@@ -252,7 +250,11 @@ void DiffDrive::startVelControl(double dx, double dtheta, double time) {
   Eigen::VectorXd p(2), v(2), a(2);
   if (base_trajectory_.getTraj()) {
     base_trajectory_.getState(time, p, v, a);
+    // The new trajectory starts at 0, so update our offset if
+    // based on previous commands
+    start_wheel_pos_ += p;
   } else {
+    start_wheel_pos_ = feedback_.getPosition();
     p.setZero();
     v.setZero();
     a.setZero();
