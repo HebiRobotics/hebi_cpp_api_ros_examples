@@ -26,51 +26,17 @@ void DiffDriveTrajectory::getState(
   trajectory_->getState(t, &positions, &velocities, &accelerations);
 }
 
-void DiffDriveTrajectory::replanVel(double t_now, const Eigen::Vector3d& target_vel) {
-  Eigen::MatrixXd positions(3, 4);
-  Eigen::MatrixXd velocities(3, 4);
-  Eigen::MatrixXd accelerations(3, 4);
-  // One second to get up to velocity, and then keep going for at least 1 second.
-  Eigen::VectorXd times(4);
-  times << 0, 0.25, 1, 1.25;
-
-  // Initial state
-  // Start from (0, 0, 0), as this is a relative motion.
+void DiffDriveTrajectory::replanVels(const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities) {
+  Eigen::MatrixXd positions(2, 4);
+  Eigen::MatrixXd accelerations(2, 4);
 
   // Copy new waypoints
   auto nan = std::numeric_limits<double>::quiet_NaN();
+
   positions.col(0).setZero();
   positions.col(1).setConstant(nan);
   positions.col(2).setConstant(nan);
   positions.col(3).setConstant(nan);
-
-  // Get last command to smoothly maintain commanded velocity
-  Eigen::VectorXd p, v, a;
-  p.resize(3);
-  v.resize(3);
-  a.resize(3);
-  if (trajectory_) {
-    getState(t_now, p, v, a);
-  } else {
-    p.setZero();
-    v.setZero();
-    a.setZero();
-  }
-
-  // Transform last velocity (local from trajectory start) into local frame
-  double theta = p[2];
-  double ctheta = std::cos(-theta);
-  double stheta = std::sin(-theta);
-  double dx = v[0] * ctheta - v[1] * stheta;
-  double dy = v[0] * stheta + v[1] * ctheta;
-  double dtheta = v[2];
-
-  Eigen::Vector3d curr_vel;
-  curr_vel << dx, dy, dtheta;
-
-  velocities.col(0) = curr_vel;
-  velocities.col(1) = velocities.col(2) = target_vel;
-  velocities.col(3).setZero();
 
   accelerations.col(0).setZero();
   accelerations.col(1).setZero();
@@ -80,7 +46,7 @@ void DiffDriveTrajectory::replanVel(double t_now, const Eigen::Vector3d& target_
   // Create new trajectory
   trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
                   times, positions, &velocities, &accelerations);
-  trajectory_start_time_ = t_now;
+  trajectory_start_time_ = times(0);
 }
   
 // Updates the Base State by planning a trajectory to a given set of joint
@@ -247,7 +213,7 @@ bool DiffDrive::update(double time) {
   command_.setPosition(start_wheel_pos_ + pos_);
   command_.setVelocity(vel_);
 
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 2; ++i) {
     command_[i].led().set(color_);
   }
 
@@ -266,6 +232,53 @@ bool DiffDrive::isTrajectoryComplete(double time) {
   
 void DiffDrive::setColor(Color& color) {
   color_ = color;
+}
+
+void DiffDrive::startVelControl(double dx, double dtheta, double time) {
+  start_wheel_pos_ = feedback_.getPosition();
+
+  Eigen::MatrixXd velocities(2, 4);
+
+  // One second to get up to velocity, and then keep going for at least 1 second.
+  Eigen::VectorXd times(4);
+  times << 0, 0.25, 1, 1.25;
+
+  // Initial state
+
+  // Copy new waypoints
+  auto nan = std::numeric_limits<double>::quiet_NaN();
+
+  // Get last command to smoothly maintain commanded velocity
+  Eigen::VectorXd p(2), v(2), a(2);
+  if (base_trajectory_.getTraj()) {
+    base_trajectory_.getState(time, p, v, a);
+  } else {
+    p.setZero();
+    v.setZero();
+    a.setZero();
+  }
+
+  Eigen::VectorXd target_vel_wheels(2);
+
+  target_vel_wheels[0] = -1.0 * dtheta * (base_radius_ / wheel_radius_);
+  target_vel_wheels[1] = -1.0 * dtheta * (base_radius_ / wheel_radius_);
+  // velocity in x to wheel angles
+  target_vel_wheels[0] += dx / wheel_radius_;
+  target_vel_wheels[1] -= dx / wheel_radius_;
+  // y vel is ignored
+
+  velocities.col(0) = v;
+  velocities.col(1) = velocities.col(2) = target_vel_wheels;
+  velocities.col(3).setZero();
+
+  //std::cout << "------------------------------------------------" << std::endl;
+  //std::cout << "t: " << times(0) << "| v: " << velocities(0, 0) << ", " << velocities(1, 0) << std::endl;
+  //std::cout << "t: " << times(1) << "| v: " << velocities(0, 1) << ", " << velocities(1, 1) << std::endl;
+  //std::cout << "t: " << times(2) << "| v: " << velocities(0, 2) << ", " << velocities(1, 2) << std::endl;
+  //std::cout << "t: " << times(3) << "| v: " << velocities(0, 3) << ", " << velocities(1, 3) << std::endl;
+
+  // Create new trajectory
+  base_trajectory_.replanVels(times, velocities);
 }
 
 void DiffDrive::startRotateBy(float theta, double time) {

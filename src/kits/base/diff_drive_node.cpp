@@ -106,15 +106,13 @@ public:
   // Set the velocity, canceling any active action
   void updateVelocity(geometry_msgs::Twist cmd_vel) {
     // Cancel any active action:
-    if (action_server_->isActive())
+    if (action_server_->isActive()) {
+      ROS_WARN("Switching to twist control, Aborting Active Trajectory");
       action_server_->setAborted();
+    }
 
     // Replan given the current command
-    Eigen::Vector3d target_vel;
-    target_vel << cmd_vel.linear.x, 0.0, cmd_vel.angular.z;
-    base_.getTrajectory().replanVel(
-      ::ros::Time::now().toSec(),
-      target_vel);
+    base_.startVelControl(cmd_vel.linear.x, cmd_vel.angular.z, ::ros::Time::now().toSec());
   }
 
   void setActionServer(actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server) {
@@ -149,8 +147,8 @@ int main(int argc, char ** argv) {
   if (node.hasParam("names") && node.getParam("names", names)) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
-    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'left' and 'right'");
-    names = {"left", "right"};
+    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'W1_left' and 'W2_right'");
+    names = {"W1_left", "W2_right"};
   }
 
   /////////////////// Initialize base ///////////////////

@@ -30,7 +30,7 @@ public:
   void getState(double t_now, 
     Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
 
-  void replanVel(double t_now, const Eigen::Vector3d& target_vel);
+  void replanVels(const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities);
 
   void replan(
     double t_now,
@@ -93,18 +93,20 @@ public:
   void startRotateBy(float radians, double current_time);
   // Replan trajectory for pure translation
   void startMoveForward(float distance, double current_time);
+  // Replan trajectory for velocity control
+  void startVelControl(double dx, double dtheta, double time);
 
   void clearColor();
+
+  /* Declare main kinematic variables */
+  static constexpr double wheel_radius_ = 0.10; // m
+  static constexpr double base_radius_ = 0.43; // m (half of distance between center of diff drive wheels)
 
 private:
   DiffDrive(std::shared_ptr<Group> group,
     DiffDriveTrajectory base_trajectory,
     const GroupFeedback& feedback,
     double start_time);
-
-  /* Declare main kinematic variables */
-  static constexpr double wheel_radius_ = 0.10; // m
-  static constexpr double base_radius_ = 0.43; // m (half of distance between center of diff drive wheels)
 
   std::shared_ptr<Group> group_;
 
