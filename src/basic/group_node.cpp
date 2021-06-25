@@ -183,7 +183,7 @@ private:
   double trajectory_start_time_{ std::numeric_limits<double>::quiet_NaN() };
   double last_time_ = 0;
   double last_setpoint_time_ = 0;
-  double message_timeout_;
+  double message_timeout_ = 0;
   std::shared_ptr<hebi::Group> group_;
   Eigen::VectorXd pos_;
   Eigen::VectorXd vel_;
