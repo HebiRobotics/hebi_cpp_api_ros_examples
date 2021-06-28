@@ -75,6 +75,7 @@ public:
     trajectory_ = nullptr;
     trajectory_start_time_ = std::numeric_limits<double>::quiet_NaN();
     // record time of last received setpoint (used to clear setpoint if message_timeout is set)
+    message_cleared_ = false;
     last_setpoint_time_ = ::ros::Time::now().toSec();
 
     Eigen::VectorXd pos(group_->size());
@@ -162,8 +163,9 @@ public:
       command_.setPosition(pos_);
       command_.setVelocity(vel_);
     } else {
-      ROS_WARN("No setpoint message received within message_timeout, clearing setpoint.");
-      if ((message_timeout_ > 0) && (t > (last_setpoint_time_ + message_timeout_))) {
+      if (!message_cleared_ && (message_timeout_ > 0) && (t > (last_setpoint_time_ + message_timeout_))) {
+        message_cleared_ = true;
+        ROS_WARN("No setpoint message received within message_timeout, clearing setpoint.");
         Eigen::VectorXd clear(group_->size());
         auto nan = std::numeric_limits<double>::quiet_NaN();
         for(size_t i=0; i < group_->size(); ++i) {
@@ -184,6 +186,7 @@ private:
   double last_time_ = 0;
   double last_setpoint_time_ = 0;
   double message_timeout_ = 0;
+  bool message_cleared_ = false;
   std::shared_ptr<hebi::Group> group_;
   Eigen::VectorXd pos_;
   Eigen::VectorXd vel_;
