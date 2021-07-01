@@ -25,7 +25,8 @@ namespace ros {
 
 class GroupNode {
 public:
-  GroupNode(::ros::NodeHandle* nh, const std::shared_ptr<hebi::Group>& group, const std::vector<std::string> link_names) :
+  GroupNode(::ros::NodeHandle* nh, const std::shared_ptr<hebi::Group>& group, const std::vector<std::string> link_names, double message_timeout) :
+       message_timeout_(message_timeout),
        group_(group),
        pos_(group->size()),
        vel_(group->size()),
@@ -73,19 +74,23 @@ public:
     }
     trajectory_ = nullptr;
     trajectory_start_time_ = std::numeric_limits<double>::quiet_NaN();
+    // record time of last received setpoint (used to clear setpoint if message_timeout is set)
+    message_cleared_ = false;
+    last_setpoint_time_ = ::ros::Time::now().toSec();
+
     Eigen::VectorXd pos(group_->size());
     Eigen::VectorXd vel(group_->size());
-    Eigen::VectorXd accel(group_->size());
+    Eigen::VectorXd effort(group_->size());
 
     for(size_t i=0; i < group_->size(); ++i) {
       pos[i] = joint_setpoint.positions[i];
       vel[i] = joint_setpoint.velocities[i];
-      accel[i] = joint_setpoint.accelerations[i];
+      effort[i] = joint_setpoint.effort[i];
     }
 
     command_.setPosition(pos);
     command_.setVelocity(vel);
-    command_.setEffort(accel);
+    command_.setEffort(effort);
   }
 
   void updateJointWaypoints(trajectory_msgs::JointTrajectory joint_trajectory) {
@@ -157,6 +162,19 @@ public:
 
       command_.setPosition(pos_);
       command_.setVelocity(vel_);
+    } else {
+      if (!message_cleared_ && (message_timeout_ > 0) && (t > (last_setpoint_time_ + message_timeout_))) {
+        message_cleared_ = true;
+        ROS_WARN("No setpoint message received within message_timeout, clearing setpoint.");
+        Eigen::VectorXd clear(group_->size());
+        auto nan = std::numeric_limits<double>::quiet_NaN();
+        for(size_t i=0; i < group_->size(); ++i) {
+          clear[i] = nan;
+        }
+        command_.setPosition(clear);
+        command_.setVelocity(clear);
+        command_.setEffort(clear);
+      }
     }
     return group_->sendCommand(command_);
   }
@@ -166,6 +184,9 @@ private:
   std::shared_ptr<trajectory::Trajectory> trajectory_;
   double trajectory_start_time_{ std::numeric_limits<double>::quiet_NaN() };
   double last_time_ = 0;
+  double last_setpoint_time_ = 0;
+  double message_timeout_ = 0;
+  bool message_cleared_ = false;
   std::shared_ptr<hebi::Group> group_;
   Eigen::VectorXd pos_;
   Eigen::VectorXd vel_;
@@ -318,6 +339,13 @@ int main(int argc, char ** argv) {
     return -1;
   }
 
+  double message_timeout;
+  if (node.hasParam("message_timeout") && node.getParam("message_timeout", message_timeout)) {
+    ROS_INFO("Found and successfully read 'message_timeout' parameter");
+  } else {
+    message_timeout = 0.0;
+  }
+
   std::shared_ptr<hebi::Group> group;
   for (int num_tries = 0; num_tries < 3; num_tries++) {
     hebi::Lookup lookup;
@@ -343,7 +371,7 @@ int main(int argc, char ** argv) {
 
   /////////////////// Initialize ROS interface ///////////////////
    
-  hebi::ros::GroupNode group_node(&node, group, names);
+  hebi::ros::GroupNode group_node(&node, group, names, message_timeout);
 
   /////////////////// Main Loop ///////////////////
 
