@@ -1,0 +1,40 @@
+<launch>
+  <param name="robot_description" command="$(find xacro)/xacro --xacro-ns $(find hebi_description)/urdf/kits/cricket.xacro" />
+
+  <rosparam>
+    families: ["Cricket"]
+    names: [
+      "L1_J1_shoulder1",
+      "L1_J2_shoulder2",
+      "L1_J3_knee",
+      "L1_J4_ankle",
+      "L1_J5_tread",
+      "L2_J1_shoulder1",
+      "L2_J2_shoulder2",
+      "L2_J3_knee",
+      "L2_J4_ankle",
+      "L2_J5_tread",
+      "L3_J1_shoulder1",
+      "L3_J2_shoulder2",
+      "L3_J3_knee",
+      "L3_J4_ankle",
+      "L3_J5_tread",
+      "L4_J1_shoulder1",
+      "L4_J2_shoulder2",
+      "L4_J3_knee",
+      "L4_J4_ankle",
+      "L4_J5_tread"
+    ]
+    gains_package: "hebi_cpp_api_examples"
+    gains_file: "config/gains/cricket_gains.xml"
+    message_timeout: 0.5
+  </rosparam>
+
+  <node name="cricket_controller" pkg="hebi_cpp_api_examples" type="group_node"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+    <param name="publish_frequency" type="double" value="30.0" />
+  </node>
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hebi_cpp_api_examples)/config/rviz/cricket.rviz"/>
+</launch>
