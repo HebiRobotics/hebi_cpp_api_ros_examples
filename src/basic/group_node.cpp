@@ -374,7 +374,7 @@ int main(int argc, char ** argv) {
 
   std::vector<std::string> full_names;
   for (auto name: names) {
-    full_names.push_back(families[0] + name);
+    full_names.push_back(families[0] + "/" + name);
   }
    
   hebi::ros::GroupNode group_node(&node, group, full_names, message_timeout);
