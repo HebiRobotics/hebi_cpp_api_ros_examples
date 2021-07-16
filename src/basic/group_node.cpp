@@ -371,8 +371,13 @@ int main(int argc, char ** argv) {
   }
 
   /////////////////// Initialize ROS interface ///////////////////
+
+  std::vector<std::string> full_names;
+  for (auto name: names) {
+    full_names.push_back(families[0] + name);
+  }
    
-  hebi::ros::GroupNode group_node(&node, group, names, message_timeout);
+  hebi::ros::GroupNode group_node(&node, group, full_names, message_timeout);
 
   /////////////////// Main Loop ///////////////////
 
