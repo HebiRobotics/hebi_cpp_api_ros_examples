@@ -136,6 +136,7 @@ public:
     state_msg_.position.resize(pos.size());
     state_msg_.velocity.resize(vel.size());
     state_msg_.effort.resize(eff.size());
+    state_msg_.header.stamp = ::ros::Time::now();
 
     VectorXd::Map(&state_msg_.position[0], pos.size()) = pos;
     VectorXd::Map(&state_msg_.velocity[0], vel.size()) = vel;
