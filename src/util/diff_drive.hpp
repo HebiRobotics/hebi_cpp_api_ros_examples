@@ -98,15 +98,15 @@ public:
 
   void clearColor();
 
-  /* Declare main kinematic variables */
-  static constexpr double wheel_radius_ = 0.10; // m
-  static constexpr double base_radius_ = 0.43; // m (half of distance between center of diff drive wheels)
-
 private:
   DiffDrive(std::shared_ptr<Group> group,
     DiffDriveTrajectory base_trajectory,
     const GroupFeedback& feedback,
     double start_time);
+
+  /* Declare main kinematic variables */
+  static constexpr double wheel_radius_ = 0.10; // m
+  static constexpr double base_radius_ = 0.43; // m (half of distance between center of diff drive wheels)
 
   std::shared_ptr<Group> group_;
 
