@@ -30,6 +30,8 @@ public:
   void getState(double t_now, 
     Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& accelerations);
 
+  void replanVels(double t_now, const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities);
+
   void replan(
     double t_now,
     const Eigen::MatrixXd& new_positions,
@@ -82,6 +84,7 @@ public:
   bool isTrajectoryComplete(double time);
 
   GroupFeedback& getLastFeedback() { return feedback_; }
+  DiffDriveTrajectory& getTrajectory() { return base_trajectory_; }
 
   // Set color (usually before commanding a new trajectory)
   void setColor(Color& color);
@@ -90,6 +93,8 @@ public:
   void startRotateBy(float radians, double current_time);
   // Replan trajectory for pure translation
   void startMoveForward(float distance, double current_time);
+  // Replan trajectory for velocity control
+  void startVelControl(double dx, double dtheta, double time);
 
   void clearColor();
 

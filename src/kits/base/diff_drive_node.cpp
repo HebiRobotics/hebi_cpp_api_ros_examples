@@ -1,5 +1,5 @@
 #include <ros/ros.h>
-#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Twist.h>
 
 #include <hebi_cpp_api_examples/BaseMotionAction.h>
 
@@ -103,6 +103,18 @@ public:
     action_server_->setSucceeded(result); // TODO: set failed?
   }
 
+  // Set the velocity, canceling any active action
+  void updateVelocity(geometry_msgs::Twist cmd_vel) {
+    // Cancel any active action:
+    if (action_server_->isActive()) {
+      ROS_WARN("Switching to twist control, Aborting Active Trajectory");
+      action_server_->setAborted();
+    }
+
+    // Replan given the current command
+    base_.startVelControl(cmd_vel.linear.x, cmd_vel.angular.z, ::ros::Time::now().toSec());
+  }
+
   void setActionServer(actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server) {
     action_server_ = action_server;
   }
@@ -135,8 +147,8 @@ int main(int argc, char ** argv) {
   if (node.hasParam("names") && node.getParam("names", names)) {
     ROS_INFO("Found and successfully read 'names' parameter");
   } else {
-    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'left' and 'right'");
-    names = {"left", "right"};
+    ROS_INFO("Could not find/read 'names' parameter; defaulting to 'W1_left' and 'W2_right'");
+    names = {"W1_left", "W2_right"};
   }
 
   /////////////////// Initialize base ///////////////////
@@ -168,9 +180,11 @@ int main(int argc, char ** argv) {
 
   base_motion_action.start();
 
-  /////////////////// Main Loop ///////////////////
+  // Explicitly set the target velocity
+  ros::Subscriber set_velocity_subscriber =
+    node.subscribe<geometry_msgs::Twist>("cmd_vel", 1, &hebi::ros::BaseNode::updateVelocity, &base_node);
 
-  double t_now;
+  /////////////////// Main Loop ///////////////////
 
   // Main command loop
   while (ros::ok()) {
