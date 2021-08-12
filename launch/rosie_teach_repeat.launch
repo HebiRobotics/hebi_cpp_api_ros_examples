@@ -1,6 +1,6 @@
 <launch>
   <rosparam ns="base"    command="load" file="$(find hebi_cpp_api_examples)/config/omni_base_params.yaml" />
-  <rosparam ns="arm"     command="load" file="$(find hebi_cpp_api_examples)/config/a-2085-06_params.yaml" />
+  <rosparam ns="arm"     command="load" file="$(find hebi_cpp_api_examples)/config/A-2085-06_params.yaml" />
   <rosparam ns="gripper" command="load" file="$(find hebi_cpp_api_examples)/config/parallel-gripper_params.yaml" />
   <rosparam>
     base/families: [ "Rosie" ]
@@ -15,7 +15,7 @@
 
   <!-- Robot components -->
   <node ns="base" pkg="hebi_cpp_api_examples" type="omni_base_node" name="omni_base_node" output="screen" required="true"/>
-  <node ns="arm" pkg="hebi_cpp_api_examples" type="teach_repeat_node" name="teach_repeat_node" output="screen" required="true"/>
+  <node ns="arm" pkg="hebi_cpp_api_examples" type="arm_teach_repeat_node" name="teach_repeat_node" output="screen" required="true"/>
   <node ns="gripper" pkg="hebi_cpp_api_examples" type="gripper_node" name="gripper_node" output="screen" required="true"/>
 
   <!-- Mobile IO controller -->
