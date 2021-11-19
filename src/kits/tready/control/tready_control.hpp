@@ -76,18 +76,18 @@ protected:
 
   void setInstructions(std::string message, hebi::Color* color = nullptr);
 
-private:
+  virtual void transitionTo(double t_now, DemoState state);
+
   static TreadyVelocity computeVelocities(const TreadyInputs& chassis_inputs);
 
   bool update(double t_now, DemoInputs demo_input = {});
 
-  void transitionTo(double t_now, DemoState state);
-
   std::shared_ptr<hebi::experimental::MobileIO> mobile_io_;
 
-  DemoState state_{DemoState::Startup};
   // TODO: initial value?
   double mobile_last_fbk_t_{};
+
+  DemoState state_{DemoState::Startup};
 
   // Keep track of the relevant bits of the base's state here.  Should not be relied on for
   // accurate timing/control flow, just UI, as this may not update instantaneously after setting the state.

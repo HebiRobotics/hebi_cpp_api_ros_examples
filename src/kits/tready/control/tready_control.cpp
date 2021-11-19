@@ -11,6 +11,44 @@ void TreadyControl::setInstructions(std::string message, hebi::Color* color) {
     mobile_io_->setLedColor(*color);
 }
 
+void TreadyControl::transitionTo(double t_now, DemoState state) {
+  // self transitions are noop
+  if (state_ == state)
+    return;
+
+  if (state == DemoState::Homing) {
+    // print("TRANSITIONING TO HOMING")
+    base_command_callback_(BaseCommand::setColor(hebi::colors::magenta()));
+    setInstructions("Robot Homing Sequence\nPlease wait...");
+    // build trajectory
+    Eigen::Vector4d flipper_home;
+    double tmp = 60. * M_PI / 180.; // 60 deg -> radians
+    flipper_home << -tmp, tmp, tmp, -tmp;
+    base_command_callback_(BaseCommand::clearChassisVelTrajectory());
+    base_command_callback_(BaseCommand::setFlipperPosTrajectory(t_now, 5.0, flipper_home));
+  } else if (state == DemoState::Teleop) {
+    // print("TRANSITIONING TO TELEOP")
+    base_command_callback_(BaseCommand::setColor(hebi::colors::clear()));
+    auto color = hebi::colors::green();
+    setInstructions("Robot Ready to Control\nB1: Reset\nB6: Joined Flipper\nB8 - Quit", &color);
+  } else if (state == DemoState::Stopped) {
+    // print("TRANSITIONING TO STOPPED")
+    base_command_callback_(BaseCommand::clearChassisVelTrajectory());
+    base_command_callback_(BaseCommand::clearFlipperTrajectory());
+    base_command_callback_(BaseCommand::setColor(hebi::colors::blue()));
+  } else if (state == DemoState::Exit) {
+    // print("TRANSITIONING TO EXIT")
+    base_command_callback_(BaseCommand::setColor(hebi::colors::red()));
+    // unset mobileIO control config
+    mobile_io_->setButtonMode(6, experimental::MobileIO::ButtonMode::Momentary);
+    mobile_io_->setButtonOutput(1, 0);
+    mobile_io_->setButtonOutput(8, 0);
+    auto color = hebi::colors::red();
+    setInstructions("Demo Stopped", &color);
+  }
+  state_ = state;
+}
+
 TreadyVelocity TreadyControl::computeVelocities(const TreadyInputs& chassis_inputs) {
   // Flipper Control
   auto flip1 = chassis_inputs.flippers_[0];
@@ -101,44 +139,6 @@ bool TreadyControl::update(double t_now, DemoInputs demo_input) {
     }
   }
   return false;
-}
-
-void TreadyControl::transitionTo(double t_now, DemoState state) {
-  // self transitions are noop
-  if (state_ == state)
-    return;
-
-  if (state == DemoState::Homing) {
-    // print("TRANSITIONING TO HOMING")
-    base_command_callback_(BaseCommand::setColor(hebi::colors::magenta()));
-    setInstructions("Robot Homing Sequence\nPlease wait...");
-    // build trajectory
-    Eigen::Vector4d flipper_home;
-    double tmp = 60. * M_PI / 180.; // 60 deg -> radians
-    flipper_home << -tmp, tmp, tmp, -tmp;
-    base_command_callback_(BaseCommand::clearChassisVelTrajectory());
-    base_command_callback_(BaseCommand::setFlipperPosTrajectory(t_now, 5.0, flipper_home));
-  } else if (state == DemoState::Teleop) {
-    // print("TRANSITIONING TO TELEOP")
-    base_command_callback_(BaseCommand::setColor(hebi::colors::clear()));
-    auto color = hebi::colors::green();
-    setInstructions("Robot Ready to Control\nB1: Reset\nB6: Joined Flipper\nB8 - Quit", &color);
-  } else if (state == DemoState::Stopped) {
-    // print("TRANSITIONING TO STOPPED")
-    base_command_callback_(BaseCommand::clearChassisVelTrajectory());
-    base_command_callback_(BaseCommand::clearFlipperTrajectory());
-    base_command_callback_(BaseCommand::setColor(hebi::colors::blue()));
-  } else if (state == DemoState::Exit) {
-    // print("TRANSITIONING TO EXIT")
-    base_command_callback_(BaseCommand::setColor(hebi::colors::red()));
-    // unset mobileIO control config
-    mobile_io_->setButtonMode(6, experimental::MobileIO::ButtonMode::Momentary);
-    mobile_io_->setButtonOutput(1, 0);
-    mobile_io_->setButtonOutput(8, 0);
-    auto color = hebi::colors::red();
-    setInstructions("Demo Stopped", &color);
-  }
-  state_ = state;
 }
 
 } // namespace hebi

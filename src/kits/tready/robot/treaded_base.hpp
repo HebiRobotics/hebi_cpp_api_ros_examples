@@ -35,7 +35,8 @@ public:
   // (Note -- for C++17, use variant here instead)
   // First value of return pair is base.  On error, this is null and error will be returned in second element.
   // Otherwise, ignore second element.
-  static std::pair<std::unique_ptr<TreadedBase>, std::string> create(hebi::Lookup& lookup, const std::string& family);
+  static std::pair<std::unique_ptr<TreadedBase>, std::string> create(hebi::Lookup& lookup, const std::string& family,
+                                                                     std::string gains_file, double t_start);
 
   bool hasActiveTrajectory() const;
 
@@ -63,15 +64,14 @@ private:
   // Only call from "create" with a group which has the gains already set, and initial feedback successfully
   // retrieved.
   TreadedBase(std::shared_ptr<hebi::Group> group, std::unique_ptr<hebi::GroupFeedback> initial_feedback,
-              float chassis_ramp_time = 0.25f, float flipper_ramp_time = 0.33f)
+              double time_start, float chassis_ramp_time = 0.25f, float flipper_ramp_time = 0.33f)
     : group_(group),
       fbk_(std::move(initial_feedback)),
       cmd_(group_->size()),
+      t_prev_(time_start),
       chassis_ramp_time_(chassis_ramp_time),
       flipper_ramp_time_(flipper_ramp_time) {
     cmd_.setPosition(fbk_->getPosition());
-    // Note -- this stored time is from the start of the node.  May want to change this...
-    t_prev_ = 0;
   }
 
   const hebi::Feedback& wheelFeedback(int index) const;

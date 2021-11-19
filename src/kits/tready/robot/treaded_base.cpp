@@ -34,7 +34,8 @@ const Eigen::MatrixXd TreadedBase::WHEEL_TO_CHASSIS_VEL = GetWheelToChassisVel()
 const Eigen::MatrixXd TreadedBase::CHASSIS_TO_WHEEL_VEL = GetChassisToWheelVel();
 
 std::pair<std::unique_ptr<TreadedBase>, std::string> TreadedBase::create(hebi::Lookup& lookup,
-                                                                         const std::string& family) {
+                                                                         const std::string& family,
+                                                                         std::string gains_file, double t_start) {
   std::vector<std::string> names(8); // 1-4 flipper, 5-8 wheels
   for (int i = 0; i < 4; ++i) {
     names[i] = "T" + std::to_string(i + 1) + "_J1_flipper";
@@ -49,7 +50,7 @@ std::pair<std::unique_ptr<TreadedBase>, std::string> TreadedBase::create(hebi::L
 
   // Try to load gains:
   hebi::GroupCommand gains_command(group->size());
-  if (!gains_command.readGains("gains/r-tready-gains.xml"))
+  if (!gains_command.readGains(gains_file))
     return {nullptr, "Could not read gains from file; check gains are in correct relative path."};
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -78,7 +79,7 @@ std::pair<std::unique_ptr<TreadedBase>, std::string> TreadedBase::create(hebi::L
   if (!success)
     return {nullptr, "Could not get feedback from modules; check network connection."};
 
-  std::unique_ptr<TreadedBase> base(new TreadedBase(group, std::move(init_feedback)));
+  std::unique_ptr<TreadedBase> base(new TreadedBase(group, std::move(init_feedback), t_start));
   return {std::move(base), ""};
 }
 
