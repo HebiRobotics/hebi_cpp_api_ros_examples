@@ -221,6 +221,14 @@ void TreadedBase::setChassisVelTrajectory(double t_now, double ramp_time, const 
   chassis_traj_ = hebi::trajectory::Trajectory::createUnconstrainedQp(times, positions, &velocities, &accelerations);
 }
 
+void TreadedBase::setColor(hebi::Color color) {
+  auto n = group_->size();
+  hebi::GroupCommand color_cmd(n);
+  for (int i = 0; i < n; ++i)
+    color_cmd[i].led().set(color);
+  group_->sendCommand(color_cmd);
+}
+
 const hebi::Feedback& TreadedBase::wheelFeedback(int index) const {
   switch (index) {
     case 0:
