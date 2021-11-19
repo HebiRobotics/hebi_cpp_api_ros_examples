@@ -1,4 +1,8 @@
+#pragma once
+
 #include "robot/treaded_base.hpp" // For constants!
+
+#include "hebi_cpp_api/util/mobile_io.hpp"
 
 namespace hebi {
 
@@ -17,13 +21,12 @@ struct TreadyVelocity {
   Eigen::Vector4d flippers_;
   // Chassis Velocity
   double base_x_vel_;
-  //double base_y_vel_;
+  // double base_y_vel_;
   double base_rot_vel_;
 };
 
 // TODO: constructors and stuff; flesh out
 struct DemoInputs {
-
   bool has_value() const { return has_value_; }
 
   bool shouldExit() { return false; }  // TODO
@@ -45,7 +48,12 @@ struct BaseState {
 // TODO: constructors and stuff; flesh out
 struct BaseCommand {
   static BaseCommand alignFlippers(bool align_state) { return BaseCommand(); }
-  static BaseCommand setTrajectories(double t_now) { return BaseCommand(); }
+  static BaseCommand setFlipperPosTrajectory(double t_now, double ramp_time, Eigen::Vector4d flipper_pos) { return BaseCommand(); }
+  static BaseCommand setFlipperVelTrajectory(double t_now, Eigen::Vector4d flipper_vel) { return BaseCommand(); }
+  static BaseCommand clearFlipperTrajectory() { return BaseCommand(); }
+  static BaseCommand setChassisVelTrajectory(double t_now, Eigen::Vector3d cartesian_vel) { return BaseCommand(); }
+  static BaseCommand clearChassisVelTrajectory() { return BaseCommand(); }
+  static BaseCommand setColor(const hebi::Color& color) { return BaseCommand(); }
 };
 
 // Base class for interfacing with tready control code.  Root state machine used for different operating modes to extend
@@ -62,20 +70,20 @@ public:
   void updateBaseState(BaseState base_state);
 
 protected:
-private:
-  TreadyControl(std::function<void(BaseCommand)> base_command_callback)
-    : base_command_callback_(base_command_callback) {
-    // TODO
-    // def __init__(self, mobile_io, base: TreadedBase):
-    //    self.mobile_io = mobile_io
-    //    self.base = base
+  TreadyControl(std::shared_ptr<hebi::experimental::MobileIO> mobile_io, std::function<void(BaseCommand)> base_command_callback)
+    : mobile_io_(mobile_io), base_command_callback_(base_command_callback) {
   }
 
+  void setInstructions(std::string message, hebi::Color* color = nullptr);
+
+private:
   static TreadyVelocity computeVelocities(const TreadyInputs& chassis_inputs);
 
   bool update(double t_now, DemoInputs demo_input = {});
 
   void transitionTo(double t_now, DemoState state);
+
+  std::shared_ptr<hebi::experimental::MobileIO> mobile_io_;
 
   DemoState state_{DemoState::Startup};
   // TODO: initial value?
@@ -86,6 +94,5 @@ private:
   BaseState base_state_;
   std::function<void(BaseCommand)> base_command_callback_;
 };
-
 
 } // namespace hebi

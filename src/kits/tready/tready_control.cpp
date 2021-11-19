@@ -1,6 +1,15 @@
 #include "tready_control.hpp"
 
+#include "colors.hpp"
+
 namespace hebi {
+
+void TreadyControl::setInstructions(std::string message, hebi::Color* color) {
+  mobile_io_->clearText();
+  mobile_io_->sendText(message);
+  if (color)
+    mobile_io_->setLedColor(*color);
+}
 
 TreadyVelocity TreadyControl::computeVelocities(const TreadyInputs& chassis_inputs) {
   // Flipper Control
@@ -29,7 +38,7 @@ TreadyVelocity TreadyControl::computeVelocities(const TreadyInputs& chassis_inpu
   // Mobile Base Control
   res.base_x_vel_ = TreadyControl::SPEED_MAX_LIN * chassis_inputs.base_x_vel_;
   // Probably don't need this? TreadyVelocity just has no y value?
-  //res.base_y_vel_ = 0.;
+  // res.base_y_vel_ = 0.;
   res.base_rot_vel_ = TreadyControl::SPEED_MAX_ROT * chassis_inputs.base_rot_vel_;
 
   return res;
@@ -75,10 +84,13 @@ bool TreadyControl::update(double t_now, DemoInputs demo_input) {
       else if (!base_state_.is_aligning_) {
         // only accept new base commands if flippers are not aligning
         auto vels = computeVelocities(demo_input.chassis_);
-        base_command_callback_(BaseCommand::setTrajectories(t_now));
-        // TODO:
-                            //self.base.set_chassis_vel_trajectory(t_now, self.base.chassis_ramp_time, chassis_vels)
-                            //self.base.set_flipper_trajectory(t_now, self.base.flipper_ramp_time, v=flipper_vels)
+        Eigen::Vector3d chassis_vels;
+        chassis_vels[0] = vels.base_x_vel_;
+        chassis_vels[1] = 0.;
+        chassis_vels[2] = vels.base_rot_vel_;
+        // TODO: use chassis_ramp_time and flipper_ramp_time when executing these!
+        base_command_callback_(BaseCommand::setChassisVelTrajectory(t_now, chassis_vels));
+        base_command_callback_(BaseCommand::setFlipperVelTrajectory(t_now, vels.flippers_));
       }
       return true;
     }
@@ -97,44 +109,34 @@ void TreadyControl::transitionTo(double t_now, DemoState state) {
     return;
 
   if (state == DemoState::Homing) {
-    /*
-                    print("TRANSITIONING TO HOMING")
-                    self.base.set_color('magenta')
-                    msg = ('Robot Homing Sequence\n'
-                           'Please wait...')
-                    set_mobile_io_instructions(self.mobile_io, msg)
-
-                    # build trajectory
-                    flipper_home = np.array([-1, 1, 1, -1]) * np.deg2rad(15 + 45)
-                    self.base.chassis_traj = None
-                    self.base.set_flipper_trajectory(t_now, 5.0, p=flipper_home)
-                    */
+    // print("TRANSITIONING TO HOMING")
+    base_command_callback_(BaseCommand::setColor(hebi::colors::magenta()));
+    setInstructions("Robot Homing Sequence\nPlease wait...");
+    // build trajectory
+    Eigen::Vector4d flipper_home;
+    double tmp = 60. * M_PI / 180.; // 60 deg -> radians
+    flipper_home << -tmp, tmp, tmp, -tmp;
+    base_command_callback_(BaseCommand::clearChassisVelTrajectory());
+    base_command_callback_(BaseCommand::setFlipperPosTrajectory(t_now, 5.0, flipper_home));
   } else if (state == DemoState::Teleop) {
-    /*
-                    print("TRANSITIONING TO TELEOP")
-                    self.base.clear_color()
-                    msg = ('Robot Ready to Control\n'
-                           'B1: Reset\n'
-                           'B6: Joined Flipper\n'
-                           'B8 - Quit')
-                    set_mobile_io_instructions(self.mobile_io, msg, color="green")
-                    */
+    // print("TRANSITIONING TO TELEOP")
+    base_command_callback_(BaseCommand::setColor(hebi::colors::clear()));
+    auto color = hebi::colors::green();
+    setInstructions("Robot Ready to Control\nB1: Reset\nB6: Joined Flipper\nB8 - Quit", &color);
   } else if (state == DemoState::Stopped) {
-    /*print("TRANSITIONING TO STOPPED")
-    self.base.chassis_traj = None
-    self.base.flipper_traj = None
-    self.base.set_color('blue')*/
+    // print("TRANSITIONING TO STOPPED")
+    base_command_callback_(BaseCommand::clearChassisVelTrajectory());
+    base_command_callback_(BaseCommand::clearFlipperTrajectory());
+    base_command_callback_(BaseCommand::setColor(hebi::colors::blue()));
   } else if (state == DemoState::Exit) {
-    /*
-                  print("TRANSITIONING TO EXIT")
-                  self.base.set_color("red")
-
-                  # unset mobileIO control config
-                  self.mobile_io.set_button_mode(6, 0)
-                  self.mobile_io.set_button_output(1, 0)
-                  self.mobile_io.set_button_output(8, 0)
-                  set_mobile_io_instructions(self.mobile_io, 'Demo Stopped', color="red")
-    */
+    // print("TRANSITIONING TO EXIT")
+    base_command_callback_(BaseCommand::setColor(hebi::colors::red()));
+    // unset mobileIO control config
+    mobile_io_->setButtonMode(6, experimental::MobileIO::ButtonMode::Momentary);
+    mobile_io_->setButtonOutput(1, 0);
+    mobile_io_->setButtonOutput(8, 0);
+    auto color = hebi::colors::red();
+    setInstructions("Demo Stopped", &color);
   }
   state_ = state;
 }
