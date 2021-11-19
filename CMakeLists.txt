@@ -166,7 +166,8 @@ add_dependencies(treaded_base_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(treaded_base_node ${catkin_LIBRARIES})
 
 add_executable(tready_controller src/kits/tready/controller_node.cpp
-  src/kits/tready/tready_control.cpp
+  src/kits/tready/control/tready_joystick_control.cpp
+  src/kits/tready/control/tready_control.cpp
 )
 target_include_directories(tready_controller PRIVATE src/kits/tready)
 add_dependencies(tready_controller ${catkin_EXPORTED_TARGETS})
