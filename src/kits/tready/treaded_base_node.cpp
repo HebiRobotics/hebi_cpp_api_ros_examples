@@ -101,7 +101,6 @@ int main(int argc, char** argv) {
   ros::Subscriber base_vel_subscriber =
       node.subscribe<geometry_msgs::Twist>("cmd_vel", 10, [&](const geometry_msgs::TwistConstPtr& cmd) {
         // Ignore input while aligning or homing flippers!
-        ROS_INFO("Got Command Vel");
         if (global_homing || global_base->isAligning())
           return;
 
@@ -116,8 +115,14 @@ int main(int argc, char** argv) {
         if (global_homing || global_base->isAligning())
           return;
 
-        // TODO
-        // self.base.set_flipper_trajectory(t_now, self.base.flipper_ramp_time, v=flipper_vels)
+        if (velocity_cmd->data.size() != 4) {
+          ROS_WARN("Ignoring flipper command; data must have four elements.");
+        }
+        Eigen::VectorXd vels(4);
+        for (int i = 0; i < 4; ++i)
+          vels[i] = velocity_cmd->data[i];
+        auto t = ::ros::Time::now().toSec();
+        base->setFlipperTrajectory(t, base->flipperRampTime(), nullptr, &vels);
       });
   ros::Subscriber color_subscriber =
       node.subscribe<std_msgs::ColorRGBA>("color", 10, [&](const std_msgs::ColorRGBAConstPtr& color_cmd) {
