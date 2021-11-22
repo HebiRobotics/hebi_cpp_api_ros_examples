@@ -20,12 +20,7 @@ void TreadyControl::transitionTo(double t_now, DemoState state) {
     // print("TRANSITIONING TO HOMING")
     base_command_callback_(BaseCommand::setColor(hebi::colors::magenta()));
     setInstructions("Robot Homing Sequence\nPlease wait...");
-    // build trajectory
-    Eigen::Vector4d flipper_home;
-    double tmp = 60. * M_PI / 180.; // 60 deg -> radians
-    flipper_home << -tmp, tmp, tmp, -tmp;
-    base_command_callback_(BaseCommand::clearChassisVelTrajectory());
-    base_command_callback_(BaseCommand::setFlipperPosTrajectory(t_now, 5.0, flipper_home));
+    base_command_callback_(BaseCommand::homeFlippers());
   } else if (state == DemoState::Teleop) {
     // print("TRANSITIONING TO TELEOP")
     base_command_callback_(BaseCommand::setColor(hebi::colors::clear()));
@@ -75,18 +70,12 @@ TreadyVelocity TreadyControl::computeVelocities(const TreadyInputs& chassis_inpu
 
   // Mobile Base Control
   res.base_x_vel_ = TreadyControl::SPEED_MAX_LIN * chassis_inputs.base_x_vel_;
-  // Probably don't need this? TreadyVelocity just has no y value?
-  // res.base_y_vel_ = 0.;
   res.base_rot_vel_ = TreadyControl::SPEED_MAX_ROT * chassis_inputs.base_rot_vel_;
 
   return res;
 }
 
 bool TreadyControl::update(double t_now, DemoInputs demo_input) {
-  // Note: the base updates in it's own node...
-  // TODO
-  // self.base.update(t_now)
-  // self.base.send()
 
   if (state_ == DemoState::Exit)
     return false;
@@ -126,9 +115,8 @@ bool TreadyControl::update(double t_now, DemoInputs demo_input) {
         chassis_vels[0] = vels.base_x_vel_;
         chassis_vels[1] = 0.;
         chassis_vels[2] = vels.base_rot_vel_;
-        // TODO: use chassis_ramp_time and flipper_ramp_time when executing these!
-        base_command_callback_(BaseCommand::setChassisVelTrajectory(t_now, chassis_vels));
-        base_command_callback_(BaseCommand::setFlipperVelTrajectory(t_now, vels.flippers_));
+        base_command_callback_(BaseCommand::setChassisVelTrajectory(chassis_vels));
+        base_command_callback_(BaseCommand::setFlipperVelTrajectory(vels.flippers_));
       }
       return true;
     }
