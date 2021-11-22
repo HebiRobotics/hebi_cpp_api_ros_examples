@@ -38,8 +38,8 @@ std::pair<std::unique_ptr<TreadedBase>, std::string> TreadedBase::create(hebi::L
                                                                          std::string gains_file, double t_start) {
   std::vector<std::string> names(8); // 1-4 flipper, 5-8 wheels
   for (int i = 0; i < 4; ++i) {
-    names[i] = "T" + std::to_string(i + 1) + "_J1_flipper";
-    names[4 + i] = "T" + std::to_string(i + 1) + "_J2_track";
+    names[i] = "T" + std::to_string(i + 1) + "_J2_track";
+    names[4 + i] = "T" + std::to_string(i + 1) + "_J1_flipper";
   }
 
   // Create base group
@@ -84,9 +84,9 @@ std::pair<std::unique_ptr<TreadedBase>, std::string> TreadedBase::create(hebi::L
 }
 
 bool TreadedBase::hasActiveTrajectory() const {
-  if (chassis_traj_ && t_prev_ < chassis_traj_->getEndTime())
+  if (chassis_traj_ && t_prev_ < (chassis_traj_->getEndTime() + chassis_traj_start_time_))
     return true;
-  if (flipper_traj_ && t_prev_ < flipper_traj_->getEndTime())
+  if (flipper_traj_ && t_prev_ < (flipper_traj_->getEndTime() + flipper_traj_start_time_))
     return true;
   return false;
 }
@@ -130,8 +130,8 @@ void TreadedBase::update(double t_now) {
   } else {
     if (chassis_traj_) {
       // chassis update
-      auto t = std::min(t_now, chassis_traj_->getEndTime());
-      Eigen::VectorXd chassis_vel;
+      auto t = std::min(t_now - chassis_traj_start_time_, chassis_traj_->getEndTime());
+      Eigen::VectorXd chassis_vel(3);
       chassis_traj_->getState(t, nullptr, &chassis_vel, nullptr);
       Eigen::VectorXd wheel_vel = CHASSIS_TO_WHEEL_VEL * chassis_vel;
       setWheelVelocityCommand(wheel_vel);
@@ -139,8 +139,9 @@ void TreadedBase::update(double t_now) {
     }
     if (flipper_traj_) {
       // flipper update
-      auto t = std::min(t_now, flipper_traj_->getEndTime());
-      Eigen::VectorXd pos, vel;
+      auto t = std::min(t_now - flipper_traj_start_time_, flipper_traj_->getEndTime());
+      Eigen::VectorXd pos(4);
+      Eigen::VectorXd vel(4);
       flipper_traj_->getState(t, &pos, &vel, nullptr);
       setFlipperVelocityCommand(vel);
       if (aligned_flipper_mode_) {
@@ -162,14 +163,18 @@ void TreadedBase::setFlipperTrajectory(double t_now, double ramp_time, Eigen::Ve
   // Otherwise we want it set to False, so clear it now
   is_aligning_ = false;
 
-  Eigen::VectorXd times;
-  times << t_now, t_now + ramp_time;
-  Eigen::MatrixXd positions = Eigen::MatrixXd::Zero(4, 2);
-  Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(4, 2);
-  Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(4, 2);
+  Eigen::VectorXd times(3);
+  double hold_time = 0.5;
+  times << 0, ramp_time, ramp_time + hold_time;
+
+  Eigen::MatrixXd positions = Eigen::MatrixXd::Zero(4, 3);
+  Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(4, 3);
+  Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(4, 3);
   if (flipper_traj_) {
-    auto t = std::min(t_now, flipper_traj_->getEndTime());
-    Eigen::VectorXd p_tmp, v_tmp, a_tmp;
+    auto t = std::min(t_now - flipper_traj_start_time_, flipper_traj_->getEndTime());
+    Eigen::VectorXd p_tmp(4);
+    Eigen::VectorXd v_tmp(4);
+    Eigen::VectorXd a_tmp(4);
     flipper_traj_->getState(t, &p_tmp, &v_tmp, &a_tmp);
     positions.col(0) = p_tmp;
     velocities.col(0) = v_tmp;
@@ -180,46 +185,54 @@ void TreadedBase::setFlipperTrajectory(double t_now, double ramp_time, Eigen::Ve
       positions(row, 0) = ff.actuator().position().get();
       velocities(row, 0) = ff.actuator().velocity().get();
     }
-    accelerations.col(0) = Eigen::VectorXd::Zero(4);
   }
   if (p)
+  {
     positions.col(1) = *p;
+    positions.col(2) = *p;
+  }
   else
+  {
     positions.col(1) = Eigen::VectorXd::Constant(4, std::numeric_limits<double>::quiet_NaN());
+    positions.col(2) = Eigen::VectorXd::Constant(4, std::numeric_limits<double>::quiet_NaN());
+  }
   if (v)
     velocities.col(1) = *v;
   else
-    velocities.col(1) = Eigen::VectorXd::Constant(4, std::numeric_limits<double>::quiet_NaN());
-  accelerations.col(1) = Eigen::VectorXd::Zero(4);
+    velocities.col(1) = Eigen::VectorXd::Zero(4);
 
   flipper_traj_ = hebi::trajectory::Trajectory::createUnconstrainedQp(times, positions, &velocities, &accelerations);
+  flipper_traj_start_time_ = t_now;
 }
 
 void TreadedBase::setChassisVelTrajectory(double t_now, double ramp_time, const Eigen::VectorXd& v) {
-  Eigen::VectorXd times;
-  times << t_now, t_now + ramp_time;
+  Eigen::VectorXd times(3);
+  double hold_time = 0.5;
+  times << 0, ramp_time, ramp_time + hold_time;
 
-  Eigen::MatrixXd positions = Eigen::MatrixXd::Zero(3, 2);
-  Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(3, 2);
-  Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(3, 2);
+  Eigen::MatrixXd positions = Eigen::MatrixXd::Zero(3, 3);
+  Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(3, 3);
+  Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(3, 3);
 
   if (chassis_traj_) {
-    auto t = std::min(t_now, chassis_traj_->getEndTime());
-    Eigen::VectorXd p_tmp, v_tmp, a_tmp;
-    flipper_traj_->getState(t, &p_tmp, &v_tmp, &a_tmp);
+    auto t = std::min(t_now - chassis_traj_start_time_, chassis_traj_->getEndTime());
+    Eigen::VectorXd p_tmp(3);
+    Eigen::VectorXd v_tmp(3);
+    Eigen::VectorXd a_tmp(3);
+    chassis_traj_->getState(t, &p_tmp, &v_tmp, &a_tmp);
     positions.col(0) = p_tmp;
     velocities.col(0) = v_tmp;
     accelerations.col(0) = a_tmp;
   } else {
     positions.col(0) = Eigen::VectorXd::Zero(3);
     velocities.col(0) = WHEEL_TO_CHASSIS_VEL * wheelFeedbackVelocity();
-    accelerations.col(0) = Eigen::VectorXd::Zero(3);
   }
   positions.col(1) = Eigen::VectorXd::Constant(3, std::numeric_limits<double>::quiet_NaN());
+  positions.col(2) = Eigen::VectorXd::Constant(3, std::numeric_limits<double>::quiet_NaN());
   velocities.col(1) = v;
-  accelerations.col(1) = Eigen::VectorXd::Zero(3);
 
   chassis_traj_ = hebi::trajectory::Trajectory::createUnconstrainedQp(times, positions, &velocities, &accelerations);
+  chassis_traj_start_time_ = t_now;
 }
 
 void TreadedBase::setColor(hebi::Color color) {

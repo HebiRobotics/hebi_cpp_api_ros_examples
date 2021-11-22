@@ -55,10 +55,15 @@ public:
   void send() { group_->sendCommand(cmd_); }
 
   void setFlipperTrajectory(double t_now, double ramp_time, Eigen::VectorXd* p = nullptr, Eigen::VectorXd* v = nullptr);
+  void clearFlipperTrajectory() { flipper_traj_= nullptr; }
 
   void setChassisVelTrajectory(double t_now, double ramp_time, const Eigen::VectorXd& v);
+  void clearChassisTrajectory() { chassis_traj_= nullptr; }
 
   void setColor(hebi::Color color);
+
+  float chassisRampTime() const { return chassis_ramp_time_; }
+  float flipperRampTime() const { return flipper_ramp_time_; }
 
 private:
   // Only call from "create" with a group which has the gains already set, and initial feedback successfully
@@ -104,8 +109,13 @@ private:
   bool is_aligning_{};
   bool aligned_flipper_mode_{};
 
+  // Note -- start times are a limitation of C++ API v 3.2.0 reducing stability of
+  // trajectories with high values of t; need to update and can remove these extra
+  // time keepers.
   std::shared_ptr<hebi::trajectory::Trajectory> chassis_traj_;
+  double chassis_traj_start_time_{};
   std::shared_ptr<hebi::trajectory::Trajectory> flipper_traj_;
+  double flipper_traj_start_time_{};
 
   double t_prev_;
 };
