@@ -48,12 +48,12 @@ struct BaseState {
 // TODO: constructors and stuff; flesh out
 struct BaseCommand {
   static BaseCommand alignFlippers(bool align_state) { return BaseCommand(); }
-  static BaseCommand setFlipperPosTrajectory(double t_now, double ramp_time, Eigen::Vector4d flipper_pos) { return BaseCommand(); }
-  static BaseCommand setFlipperVelTrajectory(double t_now, Eigen::Vector4d flipper_vel) { return BaseCommand(); }
+  static BaseCommand setFlipperVelTrajectory(Eigen::Vector4d flipper_vel) { return BaseCommand(); }
   static BaseCommand clearFlipperTrajectory() { return BaseCommand(); }
-  static BaseCommand setChassisVelTrajectory(double t_now, Eigen::Vector3d cartesian_vel) { return BaseCommand(); }
+  static BaseCommand setChassisVelTrajectory(Eigen::Vector3d cartesian_vel) { return BaseCommand(); }
   static BaseCommand clearChassisVelTrajectory() { return BaseCommand(); }
   static BaseCommand setColor(const hebi::Color& color) { return BaseCommand(); }
+  static BaseCommand homeFlippers() { return BaseCommand(); }
 };
 
 // Base class for interfacing with tready control code.  Root state machine used for different operating modes to extend
