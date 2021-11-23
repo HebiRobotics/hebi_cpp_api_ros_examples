@@ -35,11 +35,13 @@ add_action_files(
 add_message_files(
   FILES
   EndPath.msg
+  FlipperVelocityCommand.msg
   OffsetPlayback.msg
   Playback.msg
   SaveWaypoint.msg
   StartPath.msg
   TargetWaypoints.msg
+  TreadedBaseState.msg
 )
 
 add_service_files(
@@ -153,9 +155,25 @@ target_link_libraries(hexapod_control ${catkin_LIBRARIES})
 add_executable(hexapod_controller src/kits/daisy/controller_node.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/daisy/input/mobile_io.cpp
 )
-target_include_directories(hexapod_control PRIVATE src/kits/daisy)
+target_include_directories(hexapod_controller PRIVATE src/kits/daisy)
 add_dependencies(hexapod_controller ${catkin_EXPORTED_TARGETS})
 target_link_libraries(hexapod_controller ${catkin_LIBRARIES})
+
+add_executable(treaded_base_node
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/tready/treaded_base_node.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/tready/robot/treaded_base.cpp)
+
+target_include_directories(treaded_base_node PRIVATE src/kits/tready)
+add_dependencies(treaded_base_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(treaded_base_node ${catkin_LIBRARIES})
+
+#add_executable(tready_controller src/kits/tready/controller_node.cpp
+#  src/kits/tready/control/tready_arm_joystick_control.cpp
+#  src/kits/tready/control/tready_control.cpp
+#)
+#target_include_directories(tready_controller PRIVATE src/kits/tready)
+#add_dependencies(tready_controller ${catkin_EXPORTED_TARGETS})
+#target_link_libraries(tready_controller ${catkin_LIBRARIES})
 
 #############
 ## Install ##
