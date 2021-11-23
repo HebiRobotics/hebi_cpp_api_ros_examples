@@ -35,11 +35,13 @@ add_action_files(
 add_message_files(
   FILES
   EndPath.msg
+  FlipperVelocityCommand.msg
   OffsetPlayback.msg
   Playback.msg
   SaveWaypoint.msg
   StartPath.msg
   TargetWaypoints.msg
+  TreadedBaseState.msg
 )
 
 add_service_files(

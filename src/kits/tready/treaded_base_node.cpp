@@ -10,7 +10,8 @@
 #include <ros/package.h>
 #include <ros/ros.h>
 #include <std_msgs/ColorRGBA.h>
-#include <std_msgs/Float64MultiArray.h>
+#include <hebi_cpp_api_examples/FlipperVelocityCommand.h>
+#include <hebi_cpp_api_examples/TreadedBaseState.h>
 #include <std_srvs/SetBool.h>
 
 #include "robot/treaded_base.hpp"
@@ -109,18 +110,17 @@ int main(int argc, char** argv) {
         auto t = ::ros::Time::now().toSec();
         base->setChassisVelTrajectory(t, base->chassisRampTime(), vels);
       });
-  ros::Subscriber flipper_vel_subscriber = node.subscribe<std_msgs::Float64MultiArray>(
-      "flipper_vel", 10, [&](const std_msgs::Float64MultiArrayConstPtr& velocity_cmd) {
+  ros::Subscriber flipper_vel_subscriber = node.subscribe<hebi_cpp_api_examples::FlipperVelocityCommand>(
+      "flipper_vel", 10, [&](const hebi_cpp_api_examples::FlipperVelocityCommandConstPtr& velocity_cmd) {
         // Ignore input while aligning or homing flippers!
         if (global_homing || global_base->isAligning())
           return;
 
-        if (velocity_cmd->data.size() != 4) {
-          ROS_WARN("Ignoring flipper command; data must have four elements.");
-        }
         Eigen::VectorXd vels(4);
-        for (int i = 0; i < 4; ++i)
-          vels[i] = velocity_cmd->data[i];
+        vels[0] = velocity_cmd->front_left;
+        vels[1] = velocity_cmd->front_right;
+        vels[2] = velocity_cmd->back_left;
+        vels[3] = velocity_cmd->back_right;
         auto t = ::ros::Time::now().toSec();
         base->setFlipperTrajectory(t, base->flipperRampTime(), nullptr, &vels);
       });
@@ -130,6 +130,18 @@ int main(int argc, char** argv) {
                         (uint8_t)(color_cmd->a * 255)});
       });
 
+  hebi_cpp_api_examples::TreadedBaseState state_msg;
+  ros::Publisher state_publisher = node.advertise<hebi_cpp_api_examples::TreadedBaseState>("state", 100);
+
+  auto send_node_state_update = [&base, &state_msg, &state_publisher](){
+    state_msg.flippers_locked = base->alignedFlipperMode();
+    state_msg.flippers_aligned = base->flippersAligned();
+    state_msg.flipper_trajectory_active = base->hasActiveFlipperTrajectory();
+    state_msg.base_trajectory_active = base->hasActiveBaseTrajectory();
+    state_msg.mstop_pressed = base->isMStopActive();
+    state_publisher.publish(state_msg);
+  };
+  
   // ros::Service
   auto home_flippers = node.advertiseService("home_flippers", &homeService);
   auto align_flippers = node.advertiseService("align_flippers", &alignService);
@@ -143,6 +155,7 @@ int main(int argc, char** argv) {
     if (!base->hasActiveTrajectory())
       global_homing = false;
     base->send();
+    send_node_state_update();
     ros::spinOnce();
   }
 

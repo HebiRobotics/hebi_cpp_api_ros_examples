@@ -39,6 +39,8 @@ public:
                                                                      std::string gains_file, double t_start);
 
   bool hasActiveTrajectory() const;
+  bool hasActiveFlipperTrajectory() const;
+  bool hasActiveBaseTrajectory() const;
 
   bool isAligning() const;
 
@@ -64,6 +66,8 @@ public:
 
   float chassisRampTime() const { return chassis_ramp_time_; }
   float flipperRampTime() const { return flipper_ramp_time_; }
+
+  bool isMStopActive() const { return m_stop_active_; }
 
 private:
   // Only call from "create" with a group which has the gains already set, and initial feedback successfully
@@ -118,6 +122,9 @@ private:
   double flipper_traj_start_time_{};
 
   double t_prev_;
+
+  // Have we detected a pressed M-Stop on the robot?
+  bool m_stop_active_{};
 };
 
 } // namespace hebi

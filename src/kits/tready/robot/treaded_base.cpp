@@ -84,9 +84,17 @@ std::pair<std::unique_ptr<TreadedBase>, std::string> TreadedBase::create(hebi::L
 }
 
 bool TreadedBase::hasActiveTrajectory() const {
-  if (chassis_traj_ && t_prev_ < (chassis_traj_->getEndTime() + chassis_traj_start_time_))
-    return true;
+  return hasActiveBaseTrajectory() || hasActiveFlipperTrajectory();
+}
+
+bool TreadedBase::hasActiveFlipperTrajectory() const {
   if (flipper_traj_ && t_prev_ < (flipper_traj_->getEndTime() + flipper_traj_start_time_))
+    return true;
+  return false;
+}
+
+bool TreadedBase::hasActiveBaseTrajectory() const {
+  if (chassis_traj_ && t_prev_ < (chassis_traj_->getEndTime() + chassis_traj_start_time_))
     return true;
   return false;
 }
@@ -154,6 +162,9 @@ void TreadedBase::update(double t_now) {
         incrementFlipperPositionCommand(vel * dt);
       }
     }
+  }
+  if (got_feedback) {
+    m_stop_active_ = (*fbk_)[0].actuator().mstopState().get() == hebi::Feedback::MstopState::Triggered;
   }
   t_prev_ = t_now;
 }
