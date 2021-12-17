@@ -29,7 +29,8 @@ public:
                      boost::bind(&MoveItArmNode::cancelJointTrajectory, this, _1),
                      false),
       joint_state_publisher_(node.advertise<sensor_msgs::JointState>("joint_states", 100)),
-      center_of_mass_publisher_(node.advertise<geometry_msgs::Inertia>("inertia", 100)) {
+      center_of_mass_publisher_(node.advertise<geometry_msgs::Inertia>("inertia", 100)),
+      mirror_group_cmd_(1) {
 
     auto num_modules = joint_names.size();
     joint_state_message_.name = joint_names;
@@ -38,6 +39,14 @@ public:
     joint_state_message_.effort.resize(num_modules, 0 );
 
     action_server_.start();
+  }
+
+  void addDoubleShoulder(std::shared_ptr<hebi::Group>& shoulder_group, int mirror_index) {
+    if (shoulder_group) {
+      mirror_idx_ = mirror_index;
+    } else {
+      mirror_idx_ = -1;
+    }
   }
 
   void receiveJointTrajectory(actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> gh) {
@@ -146,8 +155,31 @@ public:
 
     // Update arm, and send new commands
     bool res = arm_.update();
-    if (res)
+    if (res) {
+      // handle double shoulder
+      if (mirror_idx_ >= 0) {
+        auto shoulder_pos = Eigen::VectorXd(1);
+        shoulder_pos[0] = -1 * arm_.lastFeedback().getPosition()[mirror_idx_];
+	mirror_group_cmd_.setPosition(shoulder_pos);
+
+        auto shoulder_vel = Eigen::VectorXd(1);
+        shoulder_vel[0] = -1 * arm_.lastFeedback().getVelocity()[mirror_idx_];
+	mirror_group_cmd_.setVelocity(shoulder_vel);
+
+        // Split effort across the two actuators
+        auto eff = arm_.lastFeedback().getEffort();
+	eff[mirror_idx_] = 0.5 * eff[mirror_idx_];
+	arm_.pendingCommand().setEffort(eff);
+
+        auto shoulder_eff = Eigen::VectorXd(1);
+        shoulder_eff[0] = -1 * eff[mirror_idx_];
+	mirror_group_cmd_.setEffort(shoulder_eff);
+
+
+        mirror_group_->sendCommand(mirror_group_cmd_);
+      }
       res = arm_.send();
+    }
 
     // Update position and publish
 
@@ -197,6 +229,10 @@ public:
 private:
   arm::Arm& arm_;
   ::ros::NodeHandle& node_;
+
+  int mirror_idx_ = -1;
+  hebi::Group* mirror_group_ = {nullptr};
+  hebi::GroupCommand mirror_group_cmd_;
 
   actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> trajectory_goal_;
   actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> next_goal_;
@@ -279,6 +315,7 @@ int main(int argc, char ** argv) {
     return ros::Time::now().toSec() - start_time;
   }; 
 
+  hebi::Lookup lookup;
   auto arm = arm::Arm::create(params);
   for (int num_tries = 0; num_tries < 3; num_tries++) {
     arm = arm::Arm::create(params);
@@ -327,6 +364,15 @@ int main(int argc, char ** argv) {
   /////////////////// Initialize ROS interface ///////////////////
 
   hebi::ros::MoveItArmNode arm_node(*arm, node, full_names);
+
+  std::string mirror_name;
+  if (node.hasParam("double_shoulder_name") && node.getParam("double_shoulder_name", mirror_name)) {
+    ROS_INFO("Found and successfully read 'double_shoulder_name' parameter, adding double shoulder");
+    auto g = lookup.getGroupFromNames(families, {mirror_name});
+    arm_node.addDoubleShoulder(g, 1);
+  } else {
+    ROS_WARN("Could not find/read 'double_shoulder_name' parameter; Not setting up double shoulder mirror group");
+  }
 
   /////////////////// Main Loop ///////////////////
 
