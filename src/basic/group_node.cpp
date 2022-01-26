@@ -82,6 +82,16 @@ public:
     Eigen::VectorXd vel(group_->size());
     Eigen::VectorXd effort(group_->size());
 
+    if (joint_setpoint.positions.size() != group_->size() ||
+        joint_setpoint.velocities.size() != group_->size() ||
+        joint_setpoint.accelerations.size() != group_->size()) {
+      ROS_ERROR_STREAM("Position, velocity, and acceleration sizes not correct for setpoint");
+      ROS_ERROR_STREAM("Number of joints: " << group_->size());
+      ROS_ERROR_STREAM("Position size: " << joint_setpoint.positions.size());
+      ROS_ERROR_STREAM("Velocity size: " << joint_setpoint.velocities.size());
+      ROS_ERROR_STREAM("Acceleration size: " << joint_setpoint.accelerations.size());
+      return;
+    }
     for(size_t i=0; i < group_->size(); ++i) {
       pos[i] = joint_setpoint.positions[i];
       vel[i] = joint_setpoint.velocities[i];
@@ -107,6 +117,10 @@ public:
           cmd_waypoint.velocities.size() != num_joints ||
           cmd_waypoint.accelerations.size() != num_joints) {
         ROS_ERROR_STREAM("Position, velocity, and acceleration sizes not correct for waypoint index " << waypoint);
+        ROS_ERROR_STREAM("Number of joints: " << num_joints);
+        ROS_ERROR_STREAM("Position size: " << cmd_waypoint.positions.size());
+        ROS_ERROR_STREAM("Velocity size: " << cmd_waypoint.velocities.size());
+        ROS_ERROR_STREAM("Acceleration size: " << cmd_waypoint.accelerations.size());
         return;
       }
 
@@ -177,6 +191,7 @@ public:
         command_.setEffort(clear);
       }
     }
+    ROS_INFO_STREAM("Position\n" << command_.getPosition());
     return group_->sendCommand(command_);
   }
   
@@ -365,9 +380,9 @@ int main(int argc, char ** argv) {
 
   hebi::GroupCommand gains_cmd(group->size());
   if (!gains_cmd.readGains(::ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
-    ROS_ERROR("Could not load gains file. Attempting to continue.");
+    ROS_WARN("Could not load gains file. Attempting to continue.");
   } else if (!group->sendCommandWithAcknowledgement(gains_cmd)){
-    ROS_ERROR("Could not set group gains. Attempting to continue.");
+    ROS_WARN("Could not set group gains. Attempting to continue.");
   }
 
   /////////////////// Initialize ROS interface ///////////////////
