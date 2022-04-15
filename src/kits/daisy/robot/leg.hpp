@@ -1,3 +1,5 @@
+#pragma once
+
 #include <memory>
 #include "hebi_cpp_api/robot_model.hpp"
 #include "step.hpp"

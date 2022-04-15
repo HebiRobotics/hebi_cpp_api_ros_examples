@@ -24,11 +24,11 @@ int main(int argc, char ** argv) {
   ros::NodeHandle node;
 
   // Create mobile IO connection
-  auto io = hebi::MobileIO::create("Daisy", "mobileIO");
+  auto io = hebi::MobileIO::create("Lily", "mobileIO");
   // Configure the mobile IO app; keep trying until we succeed for each of these!
   while (!io->setSnap(3, 0)) { ROS_WARN("Error while setting Mobile IO state"); }
-  while (!io->setButtonMode(1, hebi::MobileIO::ButtonMode::Toggle)) { ROS_WARN("Error while setting Mobile IO state"); }
-  while (!io->setButtonOutput(1, 1)) { ROS_WARN("Error while setting Mobile IO state"); }
+  while (!io->setButtonMode(4, hebi::MobileIO::ButtonMode::Toggle)) { ROS_WARN("Error while setting Mobile IO state"); }
+  while (!io->setButtonOutput(4, 1)) { ROS_WARN("Error while setting Mobile IO state"); }
   while (!io->setButtonOutput(8, 1)) { ROS_WARN("Error while setting Mobile IO state"); }
 
   using ButtonState = hebi::MobileIODiff::ButtonState;
@@ -79,10 +79,10 @@ int main(int argc, char ** argv) {
 
     velocity_pub.publish(velocity_msg);
 
-    if (diff.getButton(1) == ButtonState::ToOn) {
+    if (diff.getButton(4) == ButtonState::ToOn) {
       mode_select_msg.data = true;
       mode_select_pub.publish(mode_select_msg);
-    } else if (diff.getButton(1) == ButtonState::ToOff) {
+    } else if (diff.getButton(4) == ButtonState::ToOff) {
       mode_select_msg.data = false;
       mode_select_pub.publish(mode_select_msg);
     }

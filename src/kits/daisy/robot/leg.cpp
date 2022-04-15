@@ -7,7 +7,7 @@ using ActuatorType = hebi::robot_model::ActuatorType;
 using LinkType = hebi::robot_model::LinkType;
 
 Leg::Leg(const Matrix4d& base_frame, const Eigen::VectorXd& current_angles, const HexapodParameters& params, bool is_dummy, int index, LegConfiguration configuration)
-  : index_(index), stance_radius_(params.stance_radius_), body_height_(params.default_body_height_), spring_shift_(configuration == LegConfiguration::Right ? 3.75 : -3.75) // Nm
+  : index_(index), stance_radius_(params.stance_radius_), body_height_(params.default_body_height_), spring_shift_(configuration == LegConfiguration::Right ? 5.0 : -5.0) // Nm
 {
   kin_ = configuration == LegConfiguration::Left ?
     hebi::robot_model::RobotModel::loadHRDF(params.resource_path_ + "/left.hrdf") :

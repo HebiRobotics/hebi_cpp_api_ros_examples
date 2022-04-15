@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <hex_config name="config_root">
-  <body mass="21.00">
+  <!-- lily mass 24 kg w/out payload -->
+  <body mass="31.00">
     <leg angle="30.0"   offset="0.2375" flip="false"/>
     <leg angle="-30.0"  offset="0.2375" flip="false"/>
     <leg angle="90.0"   offset="0.1875" flip="false"/>
