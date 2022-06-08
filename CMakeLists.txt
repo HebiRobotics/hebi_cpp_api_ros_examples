@@ -42,6 +42,7 @@ add_message_files(
   StartPath.msg
   TargetWaypoints.msg
   TreadedBaseState.msg
+  GroupSensorState.msg
 )
 
 add_service_files(

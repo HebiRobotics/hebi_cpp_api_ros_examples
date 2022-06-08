@@ -7,18 +7,21 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <sensor_msgs/JointState.h>
+#include <geometry_msgs/Inertia.h>
 
 #include <hebi_cpp_api_examples/SetCommandLifetime.h>
 #include <hebi_cpp_api_examples/SetFeedbackFrequency.h>
 #include <hebi_cpp_api_examples/SetGains.h>
 
 #include <hebi_cpp_api_examples/TargetWaypoints.h>
+#include <hebi_cpp_api_examples/GroupSensorState.h>
 
 #include "hebi_cpp_api/lookup.hpp"
 #include "hebi_cpp_api/group.hpp"
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/group_feedback.hpp"
 #include "hebi_cpp_api/trajectory.hpp"
+#include "hebi_cpp_api/robot_model.hpp"
 
 namespace hebi {
 namespace ros {
@@ -39,9 +42,16 @@ public:
        set_lifetime_service_(nh->advertiseService("set_command_lifetime", &GroupNode::setLifetimeCallback, this)),
        set_frequency_service_(nh->advertiseService("set_feedback_frequency", &GroupNode::setFeedbackFrequencyCallback, this)),
        set_gains_(nh->advertiseService("set_gains", &GroupNode::setGainsCallback, this)),
-       group_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50))  {
+       group_state_pub_(nh->advertise<sensor_msgs::JointState>("joint_states", 50)),
+       group_sensor_pub_(nh->advertise<hebi_cpp_api_examples::GroupSensorState>("sensor_states", 50)),
+       inertia_pub_(nh->advertise<geometry_msgs::Inertia>("inertia", 50)) {
 
     state_msg_.name = link_names;
+    sensor_msg_.name = link_names;
+  }
+
+  void setModel(std::unique_ptr<robot_model::RobotModel> model) {
+    model_ = std::move(model);
   }
 
   bool setLifetimeCallback(hebi_cpp_api_examples::SetCommandLifetime::Request& req,
@@ -84,12 +94,12 @@ public:
 
     if (joint_setpoint.positions.size() != group_->size() ||
         joint_setpoint.velocities.size() != group_->size() ||
-        joint_setpoint.accelerations.size() != group_->size()) {
+        joint_setpoint.effort.size() != group_->size()) {
       ROS_ERROR_STREAM("Position, velocity, and acceleration sizes not correct for setpoint");
       ROS_ERROR_STREAM("Number of joints: " << group_->size());
       ROS_ERROR_STREAM("Position size: " << joint_setpoint.positions.size());
       ROS_ERROR_STREAM("Velocity size: " << joint_setpoint.velocities.size());
-      ROS_ERROR_STREAM("Acceleration size: " << joint_setpoint.accelerations.size());
+      ROS_ERROR_STREAM("Efforts size: " << joint_setpoint.effort.size());
       return;
     }
     for(size_t i=0; i < group_->size(); ++i) {
@@ -156,7 +166,54 @@ public:
     VectorXd::Map(&state_msg_.velocity[0], vel.size()) = vel;
     VectorXd::Map(&state_msg_.effort[0], eff.size()) = eff;
 
+    const auto temperatures = fdbk.getMotorHousingTemperature();
+
+    for(int i=0; i < pos.size(); ++i) {
+	const auto q = fdbk[i].imu().orientation().get();
+        sensor_msg_.imu[i].orientation.w = q.getW();
+        sensor_msg_.imu[i].orientation.x = q.getX();
+        sensor_msg_.imu[i].orientation.y = q.getY();
+        sensor_msg_.imu[i].orientation.z = q.getZ();
+
+	const auto v = fdbk[i].imu().gyro().get();
+        sensor_msg_.imu[i].angular_velocity.x = v.getX();
+        sensor_msg_.imu[i].angular_velocity.y = v.getY();
+        sensor_msg_.imu[i].angular_velocity.z = v.getZ();
+
+	const auto a = fdbk[i].imu().accelerometer().get();
+        sensor_msg_.imu[i].linear_acceleration.x = a.getX();
+        sensor_msg_.imu[i].linear_acceleration.y = a.getY();
+        sensor_msg_.imu[i].linear_acceleration.z = a.getZ();
+
+        sensor_msg_.temperature[i].temperature = temperatures[i];
+        sensor_msg_.temperature[i].variance = 0.0;
+    }
+
     group_state_pub_.publish(state_msg_);
+    group_sensor_pub_.publish(sensor_msg_);
+
+    if (model_) {
+        Eigen::VectorXd masses;
+        robot_model::Matrix4dVector frames;
+        model_->getMasses(masses);
+        model_->getFK(robot_model::FrameType::CenterOfMass, pos, frames);
+
+        inertia_msg_.m = 0.0;
+        Eigen::Vector3d weighted_sum_com = Eigen::Vector3d::Zero();
+        for(int i = 0; i < model_->getFrameCount(robot_model::FrameType::CenterOfMass); ++i) {
+          inertia_msg_.m += masses(i);
+          frames[i] *= masses(i);
+          weighted_sum_com(0) += frames[i](0, 3);
+          weighted_sum_com(1) += frames[i](1, 3);
+          weighted_sum_com(2) += frames[i](2, 3);
+        }
+        weighted_sum_com /= inertia_msg_.m;
+
+        inertia_msg_.com.x = weighted_sum_com(0);
+        inertia_msg_.com.y = weighted_sum_com(1);
+        inertia_msg_.com.z = weighted_sum_com(2);
+        inertia_pub_.publish(inertia_msg_);
+    }
   }
 
   bool update(double t) {
@@ -209,16 +266,21 @@ private:
   Eigen::VectorXd accel_;
   hebi::GroupCommand command_;
   hebi::GroupFeedback feedback_;
+  std::shared_ptr<robot_model::RobotModel> model_;
 
   ::ros::NodeHandle nh_;
 
   sensor_msgs::JointState state_msg_;
+  hebi_cpp_api_examples::GroupSensorState sensor_msg_;
+  geometry_msgs::Inertia inertia_msg_;
 
   ::ros::Subscriber joint_trajectory_subscriber_;
   ::ros::Subscriber joint_point_subscriber_;
   bool new_setpoint_ = false;
 
   ::ros::Publisher group_state_pub_;
+  ::ros::Publisher group_sensor_pub_;
+  ::ros::Publisher inertia_pub_;
 
   ::ros::ServiceServer set_lifetime_service_;
   ::ros::ServiceServer set_frequency_service_;
@@ -338,6 +400,20 @@ int main(int argc, char ** argv) {
     ROS_ERROR("Could not find/read required 'names' parameter; aborting!");
     return -1;
   }
+  // Read the package + path for the hrdf kinematics file
+  std::string hrdf_package;
+  if (node.hasParam("hrdf_package") && node.getParam("hrdf_package", hrdf_package)) {
+    ROS_INFO("Found and successfully read 'hrdf_package' parameter");
+  } else {
+    ROS_WARN("Could not find/read required 'hrdf_package' parameter; will not publish CoM information.");
+  }
+  std::string hrdf_file;
+  if (node.hasParam("hrdf_file") && node.getParam("hrdf_file", hrdf_file)) {
+    ROS_INFO("Found and successfully read 'hrdf_file' parameter");
+  } else {
+    ROS_WARN("Could not find/read required 'hrdf_file' parameter; will not publish CoM information.");
+  }
+
 
   // Read the package + path for the gains file
   std::string gains_package;
@@ -380,9 +456,11 @@ int main(int argc, char ** argv) {
 
   hebi::GroupCommand gains_cmd(group->size());
   if (!gains_cmd.readGains(::ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
-    ROS_WARN("Could not load gains file. Attempting to continue.");
+    ROS_ERROR("Could not load gains file. Attempting to continue.");
+    return -1;
   } else if (!group->sendCommandWithAcknowledgement(gains_cmd)){
-    ROS_WARN("Could not set group gains. Attempting to continue.");
+    ROS_ERROR("Could not set group gains. Attempting to continue.");
+    return -1;
   }
 
   /////////////////// Initialize ROS interface ///////////////////
@@ -393,6 +471,15 @@ int main(int argc, char ** argv) {
   }
    
   hebi::ros::GroupNode group_node(&node, group, full_names, message_timeout);
+
+  if (node.hasParam("hrdf_package") && node.hasParam("hrdf_file")) {
+    auto model = hebi::robot_model::RobotModel::loadHRDF(::ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file);
+    if (!model) {
+      ROS_WARN("Could not load hrdf file.");
+    } else {
+      group_node.setModel(std::move(model));
+    }
+  }
 
   /////////////////// Main Loop ///////////////////
 
