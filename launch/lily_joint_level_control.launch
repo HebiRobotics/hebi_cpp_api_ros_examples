@@ -1,6 +1,6 @@
 <launch>
   <rosparam>
-    families: ["Lily"]
+    families: ["HEBI"]
     names: [
         "L1_J1_base", "L1_J2_shoulder", "L1_J3_elbow",
         "L2_J1_base", "L2_J2_shoulder", "L2_J3_elbow",
@@ -10,7 +10,9 @@
         "L6_J1_base", "L6_J2_shoulder", "L6_J3_elbow",
     ]
     gains_package: "hebi_cpp_api_examples"
-    gains_file: ""
+    gains_file: "data/hexapod/gains18.xml"
+    hrdf_package: "hebi_cpp_api_examples"
+    hrdf_file: "data/hexapod/lily.hrdf"
     message_timeout: "0.5"
   </rosparam>
   <node name="group_node" pkg="hebi_cpp_api_examples" type="group_node" output="screen"/>
