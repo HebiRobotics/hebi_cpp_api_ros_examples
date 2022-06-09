@@ -167,24 +167,34 @@ public:
     VectorXd::Map(&state_msg_.effort[0], eff.size()) = eff;
 
     const auto temperatures = fdbk.getMotorHousingTemperature();
+    sensor_msg_.temperature.resize(temperatures.size());
+    sensor_msg_.imu.resize(temperatures.size());
 
     for(int i=0; i < pos.size(); ++i) {
-	const auto q = fdbk[i].imu().orientation().get();
-        sensor_msg_.imu[i].orientation.w = q.getW();
-        sensor_msg_.imu[i].orientation.x = q.getX();
-        sensor_msg_.imu[i].orientation.y = q.getY();
-        sensor_msg_.imu[i].orientation.z = q.getZ();
+	sensor_msg_.imu[i].header.stamp = ::ros::Time::now();
+        if (fdbk[i].imu().orientation().has()) {
+            const auto q = fdbk[i].imu().orientation().get();
+            sensor_msg_.imu[i].orientation.w = q.getW();
+            sensor_msg_.imu[i].orientation.x = q.getX();
+            sensor_msg_.imu[i].orientation.y = q.getY();
+            sensor_msg_.imu[i].orientation.z = q.getZ();
+	}
 
-	const auto v = fdbk[i].imu().gyro().get();
-        sensor_msg_.imu[i].angular_velocity.x = v.getX();
-        sensor_msg_.imu[i].angular_velocity.y = v.getY();
-        sensor_msg_.imu[i].angular_velocity.z = v.getZ();
+        if (fdbk[i].imu().gyro().has()) {
+            const auto v = fdbk[i].imu().gyro().get();
+            sensor_msg_.imu[i].angular_velocity.x = v.getX();
+            sensor_msg_.imu[i].angular_velocity.y = v.getY();
+            sensor_msg_.imu[i].angular_velocity.z = v.getZ();
+	}
 
-	const auto a = fdbk[i].imu().accelerometer().get();
-        sensor_msg_.imu[i].linear_acceleration.x = a.getX();
-        sensor_msg_.imu[i].linear_acceleration.y = a.getY();
-        sensor_msg_.imu[i].linear_acceleration.z = a.getZ();
+        if (fdbk[i].imu().accelerometer().has()) {
+            const auto a = fdbk[i].imu().accelerometer().get();
+            sensor_msg_.imu[i].linear_acceleration.x = a.getX();
+            sensor_msg_.imu[i].linear_acceleration.y = a.getY();
+            sensor_msg_.imu[i].linear_acceleration.z = a.getZ();
+	}
 
+	sensor_msg_.temperature[i].header.stamp = ::ros::Time::now();
         sensor_msg_.temperature[i].temperature = temperatures[i];
         sensor_msg_.temperature[i].variance = 0.0;
     }
@@ -248,7 +258,7 @@ public:
         command_.setEffort(clear);
       }
     }
-    ROS_INFO_STREAM("Position\n" << command_.getPosition());
+    //ROS_INFO_STREAM("Position\n" << command_.getPosition());
     return group_->sendCommand(command_);
   }
   
@@ -475,7 +485,7 @@ int main(int argc, char ** argv) {
   if (node.hasParam("hrdf_package") && node.hasParam("hrdf_file")) {
     auto model = hebi::robot_model::RobotModel::loadHRDF(::ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file);
     if (!model) {
-      ROS_WARN("Could not load hrdf file.");
+      ROS_WARN("Error loading hrdf file.");
     } else {
       group_node.setModel(std::move(model));
     }
