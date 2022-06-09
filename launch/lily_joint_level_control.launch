@@ -1,6 +1,6 @@
 <launch>
   <rosparam>
-    families: ["HEBI"]
+    families: ["Lily"]
     names: [
         "L1_J1_base", "L1_J2_shoulder", "L1_J3_elbow",
         "L2_J1_base", "L2_J2_shoulder", "L2_J3_elbow",
