@@ -164,7 +164,7 @@ add_executable(treaded_base_node
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kits/tready/robot/treaded_base.cpp)
 
 target_include_directories(treaded_base_node PRIVATE src/kits/tready)
-add_dependencies(treaded_base_node ${catkin_EXPORTED_TARGETS})
+add_dependencies(treaded_base_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(treaded_base_node ${catkin_LIBRARIES})
 
 #add_executable(tready_controller src/kits/tready/controller_node.cpp
