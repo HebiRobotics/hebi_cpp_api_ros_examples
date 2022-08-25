@@ -65,15 +65,14 @@ public:
     for (size_t i = 0; i < positions.size(); ++i)
       feedback_msg_.position[i] = positions[i];
 
-    // Note: could add methods to retrieve joint velocity and
-    // efforts as well if needed, and publish as seen below:
-/*    feedback_msg_.velocity.resize(velocities.size());
+    // SHOW: Added vel/effort pub
+    feedback_msg_.velocity.resize(velocities.size());
     for (size_t i = 0; i < velocities.size(); ++i)
       feedback_msg_.velocity[i] = velocities[i];
 
     feedback_msg_.effort.resize(efforts.size());
     for (size_t i = 0; i < efforts.size(); ++i)
-      feedback_msg_.effort[i] = efforts[i];*/
+      feedback_msg_.effort[i] = efforts[i];
 
     feedback_publisher_.publish(feedback_msg_);
   }
@@ -289,6 +288,7 @@ int main(int argc, char** argv) {
     Eigen::MatrixXd jacobian_ee;
     hebi::robot_model::MatrixXdVector jacobian_com;
     Eigen::VectorXd angles_plus_dt;
+
     for (int i = 0; i < 6; ++i) {
       hebi::Leg* curr_leg = hexapod->getLeg(i);
       curr_leg->computeState(elapsed, angles, vels, jacobian_ee, jacobian_com);
