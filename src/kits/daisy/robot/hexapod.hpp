@@ -74,7 +74,9 @@ public:
 
   Leg* getLeg(int leg_index) { return legs_[leg_index].get(); }
 
-  Eigen::VectorXd getLastFeedback();
+  Eigen::VectorXd getLastPosition();
+  Eigen::VectorXd getLastVelocity();
+  Eigen::VectorXd getLastEffort();
 
   Eigen::VectorXd getLegFeedback(int leg_index);
 
@@ -108,6 +110,8 @@ private:
   std::shared_ptr<Group> log_group_modules_;
   hebi::GroupCommand cmd_;
   Eigen::VectorXd positions_;
+  Eigen::VectorXd velocities_;
+  Eigen::VectorXd efforts_;
   std::mutex fbk_lock_;
   std::vector<std::unique_ptr<Leg> > legs_;
 

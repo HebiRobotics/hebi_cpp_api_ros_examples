@@ -283,9 +283,19 @@ void Hexapod::updateSteps(double t)
   }
 }
 
-Eigen::VectorXd Hexapod::getLastFeedback()
+Eigen::VectorXd Hexapod::getLastPosition()
 {
   return positions_;
+}
+
+Eigen::VectorXd Hexapod::getLastVelocity()
+{
+  return velocities_;
+}
+
+Eigen::VectorXd Hexapod::getLastEffort()
+{
+  return efforts_;
 }
 
 Eigen::VectorXd Hexapod::getLegFeedback(int leg_index)
@@ -372,7 +382,7 @@ void Hexapod::computeFootForces(double t, Eigen::MatrixXd& foot_forces) const
 // we need to copy from a set of n feedback angles (3 for each leg) into a vector
 // of 18 positions (3 for each of the 6 legs) in the combined "dummy" + real leg
 // hexapod.
-bool copyIntoPositions(Eigen::VectorXd& positions, const hebi::GroupFeedback* fbk, const std::set<int>& real_legs)
+bool copyIntoPositions(Eigen::VectorXd& positions, Eigen::VectorXd& velocities, Eigen::VectorXd& efforts, const hebi::GroupFeedback* fbk, const std::set<int>& real_legs)
 {
   bool valid_fbk = true;
   int fbk_idx = 0;
@@ -387,14 +397,20 @@ bool copyIntoPositions(Eigen::VectorXd& positions, const hebi::GroupFeedback* fb
     else
     {
       auto& pos = (*fbk)[fbk_idx].actuator().position();
+      auto& vel = (*fbk)[fbk_idx].actuator().velocity();
+      auto& eff = (*fbk)[fbk_idx].actuator().effort();
       if (pos)
       {
         positions[i] = pos.get();
+        velocities[i] = vel.get();
+        efforts[i] = eff.get();
       }
       else
       {
         valid_fbk = false;
         positions[i] = std::numeric_limits<double>::quiet_NaN();
+        velocities[i] = std::numeric_limits<double>::quiet_NaN();
+        efforts[i] = std::numeric_limits<double>::quiet_NaN();
       }
       fbk_idx++;
       i++;
@@ -494,6 +510,9 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
 {
   // TODO: What should the initial dummy position be?
   positions_ = Eigen::VectorXd::Zero(num_angles_);
+  velocities_ = Eigen::VectorXd::Zero(num_angles_);
+  efforts_ = Eigen::VectorXd::Zero(num_angles_);
+
   hex_errors.has_valid_initial_feedback = true;
   hex_errors.first_out_of_range_leg = -1;
   if (group_)
@@ -505,7 +524,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
     group_->sendFeedbackRequest();
     hex_errors.has_valid_initial_feedback = group_->getNextFeedback(fbk);
     // Copy data into an array
-    hex_errors.has_valid_initial_feedback = copyIntoPositions(positions_, &fbk, real_legs_)
+    hex_errors.has_valid_initial_feedback = copyIntoPositions(positions_, velocities_, efforts_, &fbk, real_legs_)
       && hex_errors.has_valid_initial_feedback;
     hex_errors.first_out_of_range_leg = getFirstOutOfRange(positions_);
     hex_errors.m_stop_pressed = getMStopPressed(fbk);
@@ -539,7 +558,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       assert(fbk.size() == Leg::getNumJoints() * real_legs_.size());
 
       // Copy data into an array
-      copyIntoPositions(positions_, &fbk, real_legs_);
+      copyIntoPositions(positions_, velocities_, efforts_, &fbk, real_legs_);
 
       // Get averaged body-frame IMU data for each leg
       // TODO: For each, CHECK THIS IS VALID/HAS FEEDBACK!

@@ -59,13 +59,12 @@ public:
     return rotation_velocity_cmd_;
   }
 
-  void publishFeedback(const Eigen::VectorXd& positions) {
+  void publishFeedback(const Eigen::VectorXd& positions, const Eigen::VectorXd& velocities, const Eigen::VectorXd& efforts) {
 
     feedback_msg_.position.resize(positions.size());
     for (size_t i = 0; i < positions.size(); ++i)
       feedback_msg_.position[i] = positions[i];
 
-    // SHOW: Added vel/effort pub
     feedback_msg_.velocity.resize(velocities.size());
     for (size_t i = 0; i < velocities.size(); ++i)
       feedback_msg_.velocity[i] = velocities[i];
@@ -254,7 +253,7 @@ int main(int argc, char** argv) {
       }
       hexapod->sendCommand();
 
-      hex_ros_if.publishFeedback(hexapod->getLastFeedback());
+      hex_ros_if.publishFeedback(hexapod->getLastPosition(), hexapod->getLastVelocity(), hexapod->getLastEffort());
 
       // Call any pending callbacks (note -- this may update our planned motion)
       ros::spinOnce();
@@ -302,7 +301,7 @@ int main(int argc, char** argv) {
     }
     hexapod->sendCommand();
 
-    hex_ros_if.publishFeedback(hexapod->getLastFeedback());
+    hex_ros_if.publishFeedback(hexapod->getLastPosition(), hexapod->getLastVelocity(), hexapod->getLastEffort());
 
     // Call any pending callbacks (note -- this may update our planned motion)
     ros::spinOnce();
