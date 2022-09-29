@@ -136,9 +136,10 @@ int main(int argc, char** argv) {
     node.subscribe<std_msgs::Bool>("mode_select", 50, &hebi::HexapodROSInterface::updateMode, &hex_ros_if); // True for stance, false for step
 
   // Controls to send to the robot
-  Eigen::VectorXd angles(hebi::Leg::getNumJoints());
-  Eigen::VectorXd vels(hebi::Leg::getNumJoints());
-  Eigen::VectorXd torques(hebi::Leg::getNumJoints());
+  int num_joints = hebi::Leg::getNumJoints();
+  Eigen::VectorXd angles(num_joints);
+  Eigen::VectorXd vels(num_joints);
+  Eigen::VectorXd torques(num_joints);
   Eigen::MatrixXd foot_forces(3,6); // 3 (xyz) by num legs
   foot_forces.setZero();
 
@@ -147,8 +148,6 @@ int main(int argc, char** argv) {
   // Run at 100 Hz:
   ros::Duration period(0.01);
 
-  bool startup = true;
-  bool first_run = true;
   std::vector<std::shared_ptr<hebi::trajectory::Trajectory>> startup_trajectories;
 
   // Timekeeping initialization:
@@ -156,6 +155,56 @@ int main(int argc, char** argv) {
   auto start_time = ros::Time::now().toSec();
   double prev_time;
   double dt = 0;
+
+  // Startup trajectory setup
+
+  // V l in legs, let s_l = start joints and e_l = end joints and t_l =
+  // trajectory, with zero vel/accel endpoints.
+  for (int i = 0; i < 6; ++i)
+  {
+    Eigen::VectorXd leg_start = hexapod->getLegFeedback(i);
+    Eigen::VectorXd leg_end;
+    Eigen::VectorXd leg_vels;
+    Eigen::MatrixXd jacobian_ee(0, 0);
+    hebi::robot_model::MatrixXdVector jacobian_com;
+    hexapod->getLeg(i)->computeState(0.0, leg_end, leg_vels, jacobian_ee, jacobian_com);
+    // TODO: fix! (quick and dirty -- leg mid is hardcoded as offset from leg end)
+    Eigen::VectorXd leg_mid = leg_end;
+    leg_mid(1) -= 0.3;
+    leg_mid(2) -= 0.15;
+
+    // Convert for trajectories
+    int num_waypoints = 5;
+    Eigen::MatrixXd positions(num_joints, num_waypoints);
+    Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
+    Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
+    Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints, std::numeric_limits<double>::quiet_NaN());
+    // Is this one of the legs that takes a step first?
+    bool step_first = (i == 0 || i == 3 || i == 4);
+
+    // Set positions
+    positions.col(0) = leg_start;
+    positions.col(1) = step_first ? leg_mid : leg_start;
+    positions.col(2) = step_first ? leg_end : leg_start;
+    positions.col(3) = step_first ? leg_end : leg_mid;
+    positions.col(4) = leg_end;
+
+    velocities.col(1) = nan_column;
+    velocities.col(3) = nan_column;
+    accelerations.col(1) = nan_column;
+    accelerations.col(3) = nan_column;
+
+    Eigen::VectorXd times(num_waypoints);
+    double local_start = 0.0;
+    double total = startup_seconds - local_start;
+    times << local_start,
+             local_start + total * 0.25,
+             local_start + total * 0.5,
+             local_start + total * 0.75,
+             local_start + total;
+    startup_trajectories.push_back(hebi::trajectory::Trajectory::createUnconstrainedQp(
+      times, positions, &velocities, &accelerations));
+  }
 
   // Main command loop
   while (ros::ok()) {
@@ -166,69 +215,12 @@ int main(int argc, char** argv) {
     dt = t - prev_time;
     prev_time = t;
 
-    // TODO: handle "startup" phase here...
-
     // Startup phase: smoothly transition!
-    if (startup)
+    if (elapsed < startup_seconds)
     {
-      int num_joints = hebi::Leg::getNumJoints();
-      // TODO: move all logic inside leg?
-      if (first_run)
-      {
-        // V l in legs, let s_l = start joints and e_l = end joints and t_l =
-        // trajectory, with zero vel/accel endpoints.
-        for (int i = 0; i < 6; ++i)
-        {
-          Eigen::VectorXd leg_start = hexapod->getLegFeedback(i);
-          Eigen::VectorXd leg_end;
-          Eigen::VectorXd leg_vels;
-          Eigen::MatrixXd jacobian_ee(0, 0);
-          hebi::robot_model::MatrixXdVector jacobian_com;
-          hexapod->getLeg(i)->computeState(elapsed, leg_end, leg_vels, jacobian_ee, jacobian_com);
-          // TODO: fix! (quick and dirty -- leg mid is hardcoded as offset from leg end)
-          Eigen::VectorXd leg_mid = leg_end;
-          leg_mid(1) -= 0.3;
-          leg_mid(2) -= 0.15;
+      Eigen::MatrixXd jacobian_ee;
+      hebi::robot_model::MatrixXdVector jacobian_com;
 
-          // Convert for trajectories
-          int num_waypoints = 5;
-          Eigen::MatrixXd positions(num_joints, num_waypoints);
-          Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
-          Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
-          Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints, std::numeric_limits<double>::quiet_NaN());
-          // Is this one of the legs that takes a step first?
-          bool step_first = (i == 0 || i == 3 || i == 4);
-
-          // Set positions
-          positions.col(0) = leg_start;
-          positions.col(1) = step_first ? leg_mid : leg_start;
-          positions.col(2) = step_first ? leg_end : leg_start;
-          positions.col(3) = step_first ? leg_end : leg_mid;
-          positions.col(4) = leg_end;
-
-          velocities.col(1) = nan_column;
-          velocities.col(3) = nan_column;
-          accelerations.col(1) = nan_column;
-          accelerations.col(3) = nan_column;
-
-          Eigen::VectorXd times(num_waypoints);
-          double local_start = elapsed;
-          double total = startup_seconds - local_start;
-          times << local_start,
-                   local_start + total * 0.25,
-                   local_start + total * 0.5,
-                   local_start + total * 0.75,
-                   local_start + total;
-          startup_trajectories.push_back(hebi::trajectory::Trajectory::createUnconstrainedQp(
-            times, positions, &velocities, &accelerations));
-
-        }
-
-        // TODO: move this startup logic outside of t.elapse() call, and then
-        // we don't need 'first_run'?
-        first_run = false;
-      }
-     
       // Follow t_l:
       for (int i = 0; i < 6; ++i)
       {
@@ -241,8 +233,6 @@ int main(int argc, char** argv) {
         hebi::Leg* curr_leg = hexapod->getLeg(i);
 
         // Get the Jacobian
-        Eigen::MatrixXd jacobian_ee;
-        hebi::robot_model::MatrixXdVector jacobian_com;
         curr_leg->computeJacobians(angles, jacobian_ee, jacobian_com);
 
         Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
@@ -251,54 +241,46 @@ int main(int argc, char** argv) {
         // TODO: add vel, torque; test each one!
         hexapod->setCommand(i, &angles, &vels, &torques);
       }
-      hexapod->sendCommand();
+    }
+    else
+    {
+      // Optionally slowly ramp up commands over the first few seconds
+      double ramp_up_scale = std::min(1.0, elapsed / startup_seconds);
 
-      hex_ros_if.publishFeedback(hexapod->getLastPosition(), hexapod->getLastVelocity(), hexapod->getLastEffort());
+      // Actually control the hexapod:
+      // Vel -> vel
+      hexapod->updateStance(
+        hex_ros_if.getTranslationVelocityCmd(),
+        hex_ros_if.getRotationVelocityCmd(),
+        dt);
 
-      // Call any pending callbacks (note -- this may update our planned motion)
-      ros::spinOnce();
+      if (hexapod->needToStep())
+        hexapod->startStep(elapsed);
 
-      period.sleep();
+      hexapod->updateSteps(elapsed);
 
-      if (elapsed >= startup_seconds)
-        startup = false;
-      continue;
+      // Calculate how the weight is distributed
+      // pos + kinematics -> efforts
+      hexapod->computeFootForces(elapsed, foot_forces);
+
+      foot_forces *= ramp_up_scale;
+
+      Eigen::MatrixXd jacobian_ee;
+      hebi::robot_model::MatrixXdVector jacobian_com;
+
+      for (int i = 0; i < 6; ++i) {
+        hebi::Leg* curr_leg = hexapod->getLeg(i);
+        curr_leg->computeState(elapsed, angles, vels, jacobian_ee, jacobian_com);
+
+        // Get torques
+        Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
+        Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
+        torques = curr_leg->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
+
+        hexapod->setCommand(i, &angles, &vels, &torques);
+      }
     }
 
-    // Optionally slowly ramp up commands over the first few seconds
-    double ramp_up_scale = std::min(1.0, elapsed / startup_seconds);
-
-    // Actually control the hexapod:
-    hexapod->updateStance(
-      hex_ros_if.getTranslationVelocityCmd(),
-      hex_ros_if.getRotationVelocityCmd(),
-      dt);
-
-    if (hexapod->needToStep())
-      hexapod->startStep(elapsed);
-
-    hexapod->updateSteps(elapsed);
-
-    // Calculate how the weight is distributed
-    hexapod->computeFootForces(elapsed, foot_forces);
-
-    foot_forces *= ramp_up_scale;
-
-    Eigen::MatrixXd jacobian_ee;
-    hebi::robot_model::MatrixXdVector jacobian_com;
-    Eigen::VectorXd angles_plus_dt;
-
-    for (int i = 0; i < 6; ++i) {
-      hebi::Leg* curr_leg = hexapod->getLeg(i);
-      curr_leg->computeState(elapsed, angles, vels, jacobian_ee, jacobian_com);
-
-      // Get torques
-      Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
-      Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
-      torques = hexapod->getLeg(i)->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
-
-      hexapod->setCommand(i, &angles, &vels, &torques);
-    }
     hexapod->sendCommand();
 
     hex_ros_if.publishFeedback(hexapod->getLastPosition(), hexapod->getLastVelocity(), hexapod->getLastEffort());
