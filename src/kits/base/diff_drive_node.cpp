@@ -21,7 +21,7 @@ namespace ros {
 
 class BaseNode {
 public:
-  BaseNode(DiffDrive& base) : base_(base) {
+  BaseNode(DiffDrive<2>& base) : base_(base) {
     Color c;
     base_.clearColor();
   }
@@ -120,7 +120,7 @@ public:
   }
 
 private:
-  DiffDrive& base_; 
+  DiffDrive<2>& base_; 
 
   actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server_ {nullptr};
 };
@@ -155,7 +155,7 @@ int main(int argc, char ** argv) {
 
   // Create base and plan initial trajectory
   std::string error_out;
-  auto base = hebi::DiffDrive::create(
+  auto base = hebi::DiffDrive<2>::create(
     families, // Famil(ies)
     names, // Names
     ::ros::package::getPath("hebi_cpp_api_examples") + "/config/gains/diff_drive_gains.xml", // Gains file

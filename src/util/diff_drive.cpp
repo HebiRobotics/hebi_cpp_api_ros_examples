@@ -2,8 +2,9 @@
 
 namespace hebi {
 
-DiffDriveTrajectory DiffDriveTrajectory::create(const Eigen::VectorXd& dest_positions, double t_now) {
-  DiffDriveTrajectory base_trajectory;
+template <int wheels>
+DiffDriveTrajectory<wheels> DiffDriveTrajectory<wheels>::create(const Eigen::VectorXd& dest_positions, double t_now) {
+  DiffDriveTrajectory<wheels> base_trajectory;
 
   // Set up initial trajectory
   Eigen::MatrixXd positions(2, 1);
@@ -13,7 +14,8 @@ DiffDriveTrajectory DiffDriveTrajectory::create(const Eigen::VectorXd& dest_posi
   return base_trajectory;
 }
 
-void DiffDriveTrajectory::getState(
+template <int wheels>
+void DiffDriveTrajectory<wheels>::getState(
   double t_now, 
   Eigen::VectorXd& positions,
   Eigen::VectorXd& velocities,
@@ -26,7 +28,8 @@ void DiffDriveTrajectory::getState(
   trajectory_->getState(t, &positions, &velocities, &accelerations);
 }
 
-void DiffDriveTrajectory::replanVels(double t_now, const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities) {
+template <int wheels>
+void DiffDriveTrajectory<wheels>::replanVels(double t_now, const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities) {
   Eigen::MatrixXd positions(2, 4);
   Eigen::MatrixXd accelerations(2, 4);
 
@@ -52,7 +55,8 @@ void DiffDriveTrajectory::replanVels(double t_now, const Eigen::VectorXd& times,
 // Updates the Base State by planning a trajectory to a given set of joint
 // waypoints.  Uses the current trajectory/state if defined.
 // NOTE: this call assumes feedback is populated.
-void DiffDriveTrajectory::replan(
+template <int wheels>
+void DiffDriveTrajectory<wheels>::replan(
   double t_now,
   const Eigen::MatrixXd& new_positions,
   const Eigen::MatrixXd& new_velocities,
@@ -95,7 +99,8 @@ void DiffDriveTrajectory::replan(
 // waypoints.  Uses the current trajectory/state if defined.
 // NOTE: this is a wrapper around the more general replan that
 // assumes zero end velocity and acceleration.
-void DiffDriveTrajectory::replan(
+template <int wheels>
+void DiffDriveTrajectory<wheels>::replan(
   double t_now,
   const Eigen::MatrixXd& new_positions) {
 
@@ -119,7 +124,8 @@ void DiffDriveTrajectory::replan(
 
 // Heuristic to get the timing of the waypoints. This function can be
 // modified to add custom waypoint timing.
-Eigen::VectorXd DiffDriveTrajectory::getWaypointTimes(
+template <int wheels>
+Eigen::VectorXd DiffDriveTrajectory<wheels>::getWaypointTimes(
   const Eigen::MatrixXd& positions,
   const Eigen::MatrixXd& velocities,
   const Eigen::MatrixXd& accelerations) {
@@ -142,14 +148,15 @@ Eigen::VectorXd DiffDriveTrajectory::getWaypointTimes(
   return times;
 };    
 
-std::unique_ptr<DiffDrive> DiffDrive::create(
+template <int wheels>
+std::unique_ptr<DiffDrive<wheels>> DiffDrive<wheels>::create(
   const std::vector<std::string>& families,
   const std::vector<std::string>& names,
   const std::string& gains_file,
   double start_time,
   std::string& error_out)
 {
-  // Invalid input!  Size mismatch.  An omnibase has three wheels.
+  // Invalid input!  Size mismatch.  A diff-drive has two wheels.
   if (names.size() != 2 || (families.size() != 1 && families.size() != 2)) {
     assert(false);
     return nullptr;
@@ -199,11 +206,12 @@ std::unique_ptr<DiffDrive> DiffDrive::create(
 
   // NOTE: I don't like that start time is _before_ the "get feedback"
   // loop above...but this is only during initialization
-  DiffDriveTrajectory base_trajectory = DiffDriveTrajectory::create(Eigen::Vector2d::Zero(), start_time);
-  return std::unique_ptr<DiffDrive>(new DiffDrive(group, base_trajectory, feedback, start_time));
+  DiffDriveTrajectory<wheels> base_trajectory = DiffDriveTrajectory<wheels>::create(Eigen::Vector2d::Zero(), start_time);
+  return std::unique_ptr<DiffDrive<wheels>>(new DiffDrive<wheels>(group, base_trajectory, feedback, start_time));
 }
 
-bool DiffDrive::update(double time) {
+template <int wheels>
+bool DiffDrive<wheels>::update(double time) {
 
   if (!group_->getNextFeedback(feedback_))
     return false;
@@ -222,19 +230,23 @@ bool DiffDrive::update(double time) {
   return true; 
 }
  
-double DiffDrive::trajectoryPercentComplete(double time) {
+template <int wheels>
+double DiffDrive<wheels>::trajectoryPercentComplete(double time) {
   return std::min((time - base_trajectory_.getTrajStartTime()) / base_trajectory_.getTraj()->getDuration(), 1.0) * 100;
 }
 
-bool DiffDrive::isTrajectoryComplete(double time) {
+template <int wheels>
+bool DiffDrive<wheels>::isTrajectoryComplete(double time) {
   return time > base_trajectory_.getTrajEndTime();
 }
   
-void DiffDrive::setColor(Color& color) {
+template <int wheels>
+void DiffDrive<wheels>::setColor(Color& color) {
   color_ = color;
 }
 
-void DiffDrive::startVelControl(double dx, double dtheta, double time) {
+template <int wheels>
+void DiffDrive<wheels>::startVelControl(double dx, double dtheta, double time) {
   Eigen::MatrixXd velocities(2, 4);
 
   // One second to get up to velocity, and then keep going for at least 1 second.
@@ -277,7 +289,8 @@ void DiffDrive::startVelControl(double dx, double dtheta, double time) {
   base_trajectory_.replanVels(time, times, velocities);
 }
 
-void DiffDrive::startRotateBy(float theta, double time) {
+template <int wheels>
+void DiffDrive<wheels>::startRotateBy(float theta, double time) {
   start_wheel_pos_ = feedback_.getPosition();
 
   // Note: to rotate by 'theta', each wheel needs to move
@@ -298,7 +311,8 @@ void DiffDrive::startRotateBy(float theta, double time) {
   base_trajectory_.replan(time, waypoints);
 }
 
-void DiffDrive::startMoveForward(float distance, double time) {
+template <int wheels>
+void DiffDrive<wheels>::startMoveForward(float distance, double time) {
   start_wheel_pos_ = feedback_.getPosition();
 
   // Note: to move by 'distance', each wheel must move
@@ -314,13 +328,15 @@ void DiffDrive::startMoveForward(float distance, double time) {
   base_trajectory_.replan(time, waypoints);
 }
 
-void DiffDrive::clearColor() {
+template <int wheels>
+void DiffDrive<wheels>::clearColor() {
   Color c(0, 0, 0, 0);
   color_ = c;
 }
   
-DiffDrive::DiffDrive(std::shared_ptr<Group> group,
-  DiffDriveTrajectory base_trajectory,
+template <int wheels>
+DiffDrive<wheels>::DiffDrive(std::shared_ptr<Group> group,
+  DiffDriveTrajectory<wheels> base_trajectory,
   const GroupFeedback& feedback,
   double start_time)
   : group_(group),

@@ -23,7 +23,7 @@ namespace hebi {
 // Note: base trajectory doesn't allow for smooth replanning, because that would be...difficult.  This
 // just represents the raw motion of the joints (left, right).
 
-class DiffDriveTrajectory {
+template <int wheels> class DiffDriveTrajectory {
 public:
   static DiffDriveTrajectory create(const Eigen::VectorXd& dest_positions, double t_now);
 
@@ -63,7 +63,7 @@ private:
   double trajectory_start_time_ {};
 };
 
-class DiffDrive {
+template <int wheels> class DiffDrive {
 public:
   // Create an diff drive base with the given modules.  Initialize the trajectory planner
   // with the given time.
@@ -84,7 +84,7 @@ public:
   bool isTrajectoryComplete(double time);
 
   GroupFeedback& getLastFeedback() { return feedback_; }
-  DiffDriveTrajectory& getTrajectory() { return base_trajectory_; }
+  DiffDriveTrajectory<wheels>& getTrajectory() { return base_trajectory_; }
 
   // Set color (usually before commanding a new trajectory)
   void setColor(Color& color);
@@ -100,7 +100,7 @@ public:
 
 private:
   DiffDrive(std::shared_ptr<Group> group,
-    DiffDriveTrajectory base_trajectory,
+    DiffDriveTrajectory<wheels> base_trajectory,
     const GroupFeedback& feedback,
     double start_time);
 
@@ -120,7 +120,7 @@ private:
   Eigen::VectorXd accel_;
   Eigen::VectorXd start_wheel_pos_;
 
-  DiffDriveTrajectory base_trajectory_;
+  DiffDriveTrajectory<wheels> base_trajectory_;
 
   Color color_;
 };
