@@ -1,4 +1,3 @@
-#include "diff_drive.hpp"
 
 namespace hebi {
 
@@ -7,7 +6,7 @@ DiffDriveTrajectory<wheels> DiffDriveTrajectory<wheels>::create(const Eigen::Vec
   DiffDriveTrajectory<wheels> base_trajectory;
 
   // Set up initial trajectory
-  Eigen::MatrixXd positions(2, 1);
+  Eigen::MatrixXd positions(wheels, 1);
   positions.col(0) = dest_positions;
   base_trajectory.replan(t_now, positions);
 
@@ -30,8 +29,8 @@ void DiffDriveTrajectory<wheels>::getState(
 
 template <int wheels>
 void DiffDriveTrajectory<wheels>::replanVels(double t_now, const Eigen::VectorXd& times, const Eigen::MatrixXd& velocities) {
-  Eigen::MatrixXd positions(2, 4);
-  Eigen::MatrixXd accelerations(2, 4);
+  Eigen::MatrixXd positions(wheels, 4);
+  Eigen::MatrixXd accelerations(wheels, 4);
 
   // Copy new waypoints
   auto nan = std::numeric_limits<double>::quiet_NaN();
@@ -146,7 +145,7 @@ Eigen::VectorXd DiffDriveTrajectory<wheels>::getWaypointTimes(
     times[i] = rampTime * (double)i;
 
   return times;
-};    
+};
 
 template <int wheels>
 std::unique_ptr<DiffDrive<wheels>> DiffDrive<wheels>::create(
@@ -157,7 +156,7 @@ std::unique_ptr<DiffDrive<wheels>> DiffDrive<wheels>::create(
   std::string& error_out)
 {
   // Invalid input!  Size mismatch.  A diff-drive has two wheels.
-  if (names.size() != 2 || (families.size() != 1 && families.size() != 2)) {
+  if (names.size() != wheels || (families.size() != 1 && families.size() != wheels)) {
     assert(false);
     return nullptr;
   }
@@ -206,7 +205,7 @@ std::unique_ptr<DiffDrive<wheels>> DiffDrive<wheels>::create(
 
   // NOTE: I don't like that start time is _before_ the "get feedback"
   // loop above...but this is only during initialization
-  DiffDriveTrajectory<wheels> base_trajectory = DiffDriveTrajectory<wheels>::create(Eigen::Vector2d::Zero(), start_time);
+  DiffDriveTrajectory<wheels> base_trajectory = DiffDriveTrajectory<wheels>::create(Eigen::VectorXd::Zero(wheels), start_time);
   return std::unique_ptr<DiffDrive<wheels>>(new DiffDrive<wheels>(group, base_trajectory, feedback, start_time));
 }
 
@@ -221,7 +220,7 @@ bool DiffDrive<wheels>::update(double time) {
   command_.setPosition(start_wheel_pos_ + pos_);
   command_.setVelocity(vel_);
 
-  for (int i = 0; i < 2; ++i) {
+  for (int i = 0; i < wheels; ++i) {
     command_[i].led().set(color_);
   }
 
@@ -229,25 +228,10 @@ bool DiffDrive<wheels>::update(double time) {
 
   return true; 
 }
- 
-template <int wheels>
-double DiffDrive<wheels>::trajectoryPercentComplete(double time) {
-  return std::min((time - base_trajectory_.getTrajStartTime()) / base_trajectory_.getTraj()->getDuration(), 1.0) * 100;
-}
-
-template <int wheels>
-bool DiffDrive<wheels>::isTrajectoryComplete(double time) {
-  return time > base_trajectory_.getTrajEndTime();
-}
-  
-template <int wheels>
-void DiffDrive<wheels>::setColor(Color& color) {
-  color_ = color;
-}
 
 template <int wheels>
 void DiffDrive<wheels>::startVelControl(double dx, double dtheta, double time) {
-  Eigen::MatrixXd velocities(2, 4);
+  Eigen::MatrixXd velocities(wheels, 4);
 
   // One second to get up to velocity, and then keep going for at least 1 second.
   Eigen::VectorXd times(4);
@@ -259,7 +243,7 @@ void DiffDrive<wheels>::startVelControl(double dx, double dtheta, double time) {
   auto nan = std::numeric_limits<double>::quiet_NaN();
 
   // Get last command to smoothly maintain commanded velocity
-  Eigen::VectorXd p(2), v(2), a(2);
+  Eigen::VectorXd p(wheels), v(wheels), a(wheels);
   if (base_trajectory_.getTraj()) {
     base_trajectory_.getState(time, p, v, a);
     // The new trajectory starts at 0, so update our offset if
@@ -272,7 +256,7 @@ void DiffDrive<wheels>::startVelControl(double dx, double dtheta, double time) {
     a.setZero();
   }
 
-  Eigen::VectorXd target_vel_wheels(2);
+  Eigen::VectorXd target_vel_wheels(wheels);
 
   target_vel_wheels[0] = -1.0 * dtheta * (base_radius_ / wheel_radius_);
   target_vel_wheels[1] = -1.0 * dtheta * (base_radius_ / wheel_radius_);
@@ -280,6 +264,14 @@ void DiffDrive<wheels>::startVelControl(double dx, double dtheta, double time) {
   target_vel_wheels[0] += dx / wheel_radius_;
   target_vel_wheels[1] -= dx / wheel_radius_;
   // y vel is ignored
+
+  // copy to other wheel pairs
+  if (wheels > 2) {
+    for (int offset=2; offset < wheels; offset+=2) {
+      target_vel_wheels[offset] = target_vel_wheels[0];
+      target_vel_wheels[offset + 1] = target_vel_wheels[1];
+    }
+  }
 
   velocities.col(0) = v;
   velocities.col(1) = velocities.col(2) = target_vel_wheels;
@@ -302,12 +294,20 @@ void DiffDrive<wheels>::startRotateBy(float theta, double time) {
   float wheel_theta = base_radius_ * theta / wheel_radius_;
 
   // [L; R] final wheel positions
-  Eigen::MatrixXd waypoints(2, 1);
+  Eigen::MatrixXd waypoints(wheels, 1);
   // Because of the way the actuators are mounted, rotating in
   // the '-z' actuator direction will move the robot in a
   // positive robot-frame direction.
   waypoints(0, 0) = -wheel_theta; 
   waypoints(1, 0) = -wheel_theta; 
+
+  // copy to other wheel pairs
+  if (wheels > 2) {
+    for (int offset=2; offset < wheels; offset+=2) {
+      waypoints(offset, 0) = -wheel_theta;
+      waypoints(offset+1, 0) = -wheel_theta;
+    }
+  }
   base_trajectory_.replan(time, waypoints);
 }
 
@@ -320,18 +320,18 @@ void DiffDrive<wheels>::startMoveForward(float distance, double time) {
 
   float wheel_theta = distance / wheel_radius_;
   // [L; R] final wheel positions
-  Eigen::MatrixXd waypoints(2, 1);
+  Eigen::MatrixXd waypoints(wheels, 1);
   // Because of the way the actuators are mounted, we negate
   // the left actuator to move forward.
   waypoints(0, 0) = wheel_theta; 
   waypoints(1, 0) = -wheel_theta; 
+  if (wheels > 2) {
+    for (int offset=2; offset < wheels; offset+=2) {
+      waypoints(offset, 0) = wheel_theta;
+      waypoints(offset+1, 0) = -wheel_theta;
+    }
+  }
   base_trajectory_.replan(time, waypoints);
-}
-
-template <int wheels>
-void DiffDrive<wheels>::clearColor() {
-  Color c(0, 0, 0, 0);
-  color_ = c;
 }
   
 template <int wheels>

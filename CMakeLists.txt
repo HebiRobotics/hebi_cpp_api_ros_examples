@@ -112,9 +112,13 @@ add_executable(rosie_teach_repeat_controller_node src/kits/rosie/teach_repeat_co
 add_dependencies(rosie_teach_repeat_controller_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(rosie_teach_repeat_controller_node ${catkin_LIBRARIES} )
 
-add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp src/util/diff_drive.cpp)
+add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp)
 add_dependencies(diff_drive_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
+
+add_executable(wheelie_node src/kits/base/wheelie.cpp)
+add_dependencies(wheelie_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
+target_link_libraries(wheelie_node ${catkin_LIBRARIES} )
 
 add_executable(arm_teach_repeat_node src/kits/arm/arm_teach_repeat_node.cpp src/util/path.cpp src/util/waypoint.cpp)
 add_dependencies(arm_teach_repeat_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})

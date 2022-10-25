@@ -78,16 +78,28 @@ public:
   // calling frequency is ~100Hz. Slow or intermittent calls will result in jerky motion.
   bool update(double time);
 
-  // How far through the last commanded trajectory are we?
-  double trajectoryPercentComplete(double time);
-  // Has the last commanded trajectory been completed?
-  bool isTrajectoryComplete(double time);
-
   GroupFeedback& getLastFeedback() { return feedback_; }
   DiffDriveTrajectory<wheels>& getTrajectory() { return base_trajectory_; }
 
+  // How far through the last commanded trajectory are we?
+  double trajectoryPercentComplete(double time) {
+    return std::min((time - base_trajectory_.getTrajStartTime()) / base_trajectory_.getTraj()->getDuration(), 1.0) * 100;
+  }
+
+  // Has the last commanded trajectory been completed?
+  bool isTrajectoryComplete(double time) {
+    return time > base_trajectory_.getTrajEndTime();
+  }
+
   // Set color (usually before commanding a new trajectory)
-  void setColor(Color& color);
+  void setColor(Color& color) {
+    color_ = color;
+  }
+
+  void clearColor() {
+    Color c(0, 0, 0, 0);
+    color_ = c;
+  }
 
   // Replan trajectory for pure rotation
   void startRotateBy(float radians, double current_time);
@@ -95,8 +107,6 @@ public:
   void startMoveForward(float distance, double current_time);
   // Replan trajectory for velocity control
   void startVelControl(double dx, double dtheta, double time);
-
-  void clearColor();
 
 private:
   DiffDrive(std::shared_ptr<Group> group,
@@ -126,3 +136,5 @@ private:
 };
 
 }
+
+#include "diff_drive.ipp"

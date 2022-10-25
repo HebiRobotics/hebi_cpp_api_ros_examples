@@ -1,0 +1,7 @@
+<launch>
+  <!-- Parameters for the module names -->
+  <rosparam file="$(find hebi_cpp_api_examples)/config/wheelie_params.yaml" command="load" />
+
+  <node pkg="hebi_cpp_api_examples" type="wheelie_node" name="wheelie_node" />
+  <node pkg="hebi_cpp_api_examples" type="omni_base_controller_node" name="omni_base_controller_node" output="screen" required="true"/>
+</launch>
