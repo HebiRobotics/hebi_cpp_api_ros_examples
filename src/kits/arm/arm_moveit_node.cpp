@@ -336,7 +336,9 @@ int main(int argc, char ** argv) {
   auto t = ros::Time::now();
 
   arm_node.update(t);
-  arm->setGoal(arm::Goal::createFromPosition(home_position));
+  if (!home_position_vector.empty()) {
+    arm->setGoal(arm::Goal::createFromPosition(home_position));
+  }
 
   auto prev_t = t;
   while (ros::ok()) {
@@ -348,7 +350,7 @@ int main(int argc, char ** argv) {
       ROS_WARN("Error Getting Feedback -- Check Connection");
 
     // If a simulator reset has occured, go back to the home position.
-    if (t < prev_t) {
+    if (!home_position_vector.empty() && (t < prev_t)) {
       std::cout << "Resetting action server and returning to home pose after simulation reset" << std::endl;
       arm->setGoal(arm::Goal::createFromPosition(home_position));
     }
