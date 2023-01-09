@@ -27,7 +27,7 @@ To create `roscore.service`, create a file at `/etc/systemd/system/roscore.servi
 
 ```
 [Unit]
-After=NetworkManager.service time-sync.target
+After=network-online.target time-sync.target
 [Service]
 Type=forking
 User=hebi
@@ -58,7 +58,7 @@ Next create `/etc/systemd/system/roslaunch.service` containing
 [Unit]
 Requires=roscore.service
 PartOf=roscore.service
-After=NetworkManager.service time-sync.target roscore.service
+After=network-online.target time-sync.target roscore.service
 [Service]
 Type=simple
 User=hebi
