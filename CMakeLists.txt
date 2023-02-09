@@ -116,7 +116,7 @@ add_executable(diff_drive_node src/kits/base/diff_drive_node.cpp)
 add_dependencies(diff_drive_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(diff_drive_node ${catkin_LIBRARIES} )
 
-add_executable(wheelie_node src/kits/base/wheelie.cpp)
+add_executable(wheelie_node src/kits/base/wheelie.cpp src/util/odom_publisher.cpp)
 add_dependencies(wheelie_node ${PROJECT_NAME}_generate_messages_cpp ${catkin_EXPORTED_TARGETS})
 target_link_libraries(wheelie_node ${catkin_LIBRARIES} )
 

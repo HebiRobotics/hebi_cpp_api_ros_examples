@@ -74,12 +74,20 @@ public:
     double start_time,
     std::string& error_out);
 
+  void updateOdometry(const Eigen::Vector4d& wheel_vel, double dt);
   // This should be called regularly to ensure commands are sent to the robot.  Recommended
   // calling frequency is ~100Hz. Slow or intermittent calls will result in jerky motion.
   bool update(double time);
 
   GroupFeedback& getLastFeedback() { return feedback_; }
   DiffDriveTrajectory<wheels>& getTrajectory() { return base_trajectory_; }
+
+  double last_time_{-1};
+
+  // Odometry/system state
+  const Eigen::Vector3d& getGlobalPose() { return global_pose_; }
+  const Eigen::Vector3d& getGlobalVelocity() { return global_vel_; }
+  const Eigen::Vector3d& getLocalVelocity() { return local_vel_; }
 
   // How far through the last commanded trajectory are we?
   double trajectoryPercentComplete(double time) {
@@ -115,8 +123,8 @@ private:
     double start_time);
 
   /* Declare main kinematic variables */
-  static constexpr double wheel_radius_ = 0.10; // m
-  static constexpr double base_radius_ = 0.43; // m (half of distance between center of diff drive wheels)
+  static constexpr double wheel_radius_ = 0.13; // m
+  static constexpr double base_radius_ = 0.235; // m (half of distance between center of diff drive wheels)
 
   std::shared_ptr<Group> group_;
 
@@ -131,6 +139,13 @@ private:
   Eigen::VectorXd start_wheel_pos_;
 
   DiffDriveTrajectory<wheels> base_trajectory_;
+
+  // Track odometry; these are updated every time `update` is called.
+  // x/y/theta global pose and velocity
+  Eigen::Vector3d global_pose_{0, 0, 0};
+  Eigen::Vector3d global_vel_{0, 0, 0};
+  // Also, local velocity.
+  Eigen::Vector3d local_vel_{0, 0, 0};
 
   Color color_;
 };

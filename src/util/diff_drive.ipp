@@ -15,7 +15,7 @@ DiffDriveTrajectory<wheels> DiffDriveTrajectory<wheels>::create(const Eigen::Vec
 
 template <int wheels>
 void DiffDriveTrajectory<wheels>::getState(
-  double t_now, 
+  double t_now,
   Eigen::VectorXd& positions,
   Eigen::VectorXd& velocities,
   Eigen::VectorXd& accelerations) {
@@ -50,7 +50,7 @@ void DiffDriveTrajectory<wheels>::replanVels(double t_now, const Eigen::VectorXd
                   times, positions, &velocities, &accelerations);
   trajectory_start_time_ = t_now;
 }
-  
+
 // Updates the Base State by planning a trajectory to a given set of joint
 // waypoints.  Uses the current trajectory/state if defined.
 // NOTE: this call assumes feedback is populated.
@@ -93,7 +93,7 @@ void DiffDriveTrajectory<wheels>::replan(
                   trajTime, positions, &velocities, &accelerations);
   trajectory_start_time_ = t_now;
 }
-  
+
 // Updates the Base State by planning a trajectory to a given set of joint
 // waypoints.  Uses the current trajectory/state if defined.
 // NOTE: this is a wrapper around the more general replan that
@@ -131,7 +131,7 @@ Eigen::VectorXd DiffDriveTrajectory<wheels>::getWaypointTimes(
 
   // TODO: make this configurable!
   double rampTime = 0.5; // Per meter
-  double dist = std::pow(positions(0, 1) - positions(0, 0), 2) + 
+  double dist = std::pow(positions(0, 1) - positions(0, 0), 2) +
                 std::pow(positions(1, 1) - positions(1, 0), 2);
   dist = std::sqrt(dist);
 
@@ -194,8 +194,8 @@ std::unique_ptr<DiffDrive<wheels>> DiffDrive<wheels>::create(
   // Try to get feedback -- if we don't get a packet in the first N times,
   // something is wrong
   int num_attempts = 0;
-  
-  // This whole "plan initial trajectory" is a little hokey...but it's better than nothing  
+
+  // This whole "plan initial trajectory" is a little hokey...but it's better than nothing
   GroupFeedback feedback(group->size());
   while (!group->getNextFeedback(feedback)) {
     if (num_attempts++ > 20) {
@@ -209,8 +209,79 @@ std::unique_ptr<DiffDrive<wheels>> DiffDrive<wheels>::create(
   return std::unique_ptr<DiffDrive<wheels>>(new DiffDrive<wheels>(group, base_trajectory, feedback, start_time));
 }
 
+// Updates local velocity based on wheel change in position since last time
+template <int wheels>
+void DiffDrive<wheels>::updateOdometry(const Eigen::Vector4d& wheel_vel, double dt) {
+  // Get local velocities
+
+  /*
+  vel[0] = -dtheta * base_radius_ + dx;
+  vel[1] = -dtheta * base_radius_ - dx;
+  */
+
+  /*
+  vel[0] + dtheta * base_radius_ = dx;
+  -vel[1] - dtheta * base_radius_ = dx;
+  dx = (vel[0] - vel[1]) / 2 + (dtheta * base_radius_ - dtheta * base_radius_) / 2.0
+  dx = (vel[0] - vel[1]) / 2
+  */
+
+  /*
+  (vel[0] - dx) / -base_radius_ = dtheta;
+  (vel[1] + dx) / -base_radius_ = dtheta;
+  (-vel[0] / base_radius_) + (dx / base_radius_) - (vel[1] / base_radius_) - (dx / base_radius_) = 2 * dtheta;
+  (-vel[0] / base_radius_) - (vel[1] / base_radius_) = 2 * dtheta;
+  (vel[0] / -base_radius_) + (vel[1] / -base_radius_) = 2 * dtheta;
+  (vel[0] + vel[1]) / (-2 * base_radius_) = dtheta;
+  */
+
+  double left_vel_rad = (wheel_vel[0] + wheel_vel[2]) / 2.0;
+  double right_vel_rad = (wheel_vel[1] + wheel_vel[3]) / 2.0;
+
+  if (abs(left_vel_rad) < 0.1) { // rad/s
+    left_vel_rad = 0.0;
+  }
+  if (abs(right_vel_rad) < 0.1) { // rad/s
+    right_vel_rad = 0.0;
+  }
+
+  double left_vel = left_vel_rad * wheel_radius_;
+  double right_vel = right_vel_rad * wheel_radius_;
+
+  double base_dx = (left_vel - right_vel) / 2.0;
+  double base_dtheta = (left_vel + right_vel) / (-2.0 * base_radius_);
+
+  //ROS_WARN_STREAM("Wheel vels:\n" << wheel_vel);
+  ROS_WARN_STREAM("L: " << left_vel << " R: " << right_vel);
+  ROS_WARN_STREAM("X: " << base_dx);
+  ROS_WARN_STREAM("Theta: " << base_dtheta);
+  //ROS_WARN_STREAM("X: " << base_dx << " Theta: " << base_dtheta);
+
+  local_vel_[0] = base_dx;
+  local_vel_[1] = 0.0;
+  local_vel_[2] = base_dtheta;
+
+
+  // Get global velocity:
+  auto c = std::cos(global_pose_[2]);
+  auto s = std::sin(global_pose_[2]);
+  global_vel_[0] = c * local_vel_[0] - s * local_vel_[1];
+  global_vel_[1] = s * local_vel_[0] + c * local_vel_[1];
+  // Theta transforms directly
+  global_vel_[2] = local_vel_[2];
+
+  global_pose_ += global_vel_ * dt;
+}
+
 template <int wheels>
 bool DiffDrive<wheels>::update(double time) {
+
+  double dt = 0;
+  if (last_time_ < 0) { // Sentinel value set when we restart...
+    last_time_ = time;
+  } else {
+    dt = time - last_time_;
+  }
 
   if (!group_->getNextFeedback(feedback_))
     return false;
@@ -220,13 +291,17 @@ bool DiffDrive<wheels>::update(double time) {
   command_.setPosition(start_wheel_pos_ + pos_);
   command_.setVelocity(vel_);
 
+  updateOdometry(feedback_.getVelocity(), dt);
+
   for (int i = 0; i < wheels; ++i) {
     command_[i].led().set(color_);
   }
 
   group_->sendCommand(command_);
 
-  return true; 
+  last_time_ = time;
+
+  return true;
 }
 
 template <int wheels>
@@ -298,8 +373,8 @@ void DiffDrive<wheels>::startRotateBy(float theta, double time) {
   // Because of the way the actuators are mounted, rotating in
   // the '-z' actuator direction will move the robot in a
   // positive robot-frame direction.
-  waypoints(0, 0) = -wheel_theta; 
-  waypoints(1, 0) = -wheel_theta; 
+  waypoints(0, 0) = -wheel_theta;
+  waypoints(1, 0) = -wheel_theta;
 
   // copy to other wheel pairs
   if (wheels > 2) {
@@ -323,8 +398,8 @@ void DiffDrive<wheels>::startMoveForward(float distance, double time) {
   Eigen::MatrixXd waypoints(wheels, 1);
   // Because of the way the actuators are mounted, we negate
   // the left actuator to move forward.
-  waypoints(0, 0) = wheel_theta; 
-  waypoints(1, 0) = -wheel_theta; 
+  waypoints(0, 0) = wheel_theta;
+  waypoints(1, 0) = -wheel_theta;
   if (wheels > 2) {
     for (int offset=2; offset < wheels; offset+=2) {
       waypoints(offset, 0) = wheel_theta;
@@ -333,7 +408,7 @@ void DiffDrive<wheels>::startMoveForward(float distance, double time) {
   }
   base_trajectory_.replan(time, waypoints);
 }
-  
+
 template <int wheels>
 DiffDrive<wheels>::DiffDrive(std::shared_ptr<Group> group,
   DiffDriveTrajectory<wheels> base_trajectory,

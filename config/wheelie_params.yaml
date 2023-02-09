@@ -1,3 +1,4 @@
 # Parameters for the module names, gains, hrdf, etc
 names: [ "W1_front-left", "W2_front-right", "W3_rear-left", "W4_rear-right" ]
 families: [ "Chevron" ]
+publish_odom: true
