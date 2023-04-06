@@ -149,6 +149,7 @@ int main(int argc, char ** argv) {
   // Initialize ROS node
   ros::init(argc, argv, "wheelie_drive_node");
   ros::NodeHandle node;
+  ros::NodeHandle nh("~");
 
   // Get parameters for name/family of modules; default to standard values:
   std::vector<std::string> families;
@@ -215,7 +216,7 @@ int main(int argc, char ** argv) {
   ros::Subscriber set_velocity_subscriber =
     node.subscribe<geometry_msgs::Twist>("cmd_vel", 1, &hebi::ros::BaseNode<4>::updateVelocity, &base_node);
 
-  ros::ServiceServer parking_brake = node.advertiseService("~park", &hebi::ros::BaseNode<4>::setParked, &base_node);
+  ros::ServiceServer parking_brake = nh.advertiseService("~park", &hebi::ros::BaseNode<4>::setParked, &base_node);
 
   /////////////////// Main Loop ///////////////////
 
