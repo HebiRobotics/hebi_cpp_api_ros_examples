@@ -216,7 +216,7 @@ int main(int argc, char ** argv) {
   ros::Subscriber set_velocity_subscriber =
     node.subscribe<geometry_msgs::Twist>("cmd_vel", 1, &hebi::ros::BaseNode<4>::updateVelocity, &base_node);
 
-  ros::ServiceServer parking_brake = nh.advertiseService("~park", &hebi::ros::BaseNode<4>::setParked, &base_node);
+  ros::ServiceServer parking_brake = nh.advertiseService("park", &hebi::ros::BaseNode<4>::setParked, &base_node);
 
   /////////////////// Main Loop ///////////////////
 
