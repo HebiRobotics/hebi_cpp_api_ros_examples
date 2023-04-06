@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
+#include <std_srvs/SetBool.h>
 
 #include <hebi_cpp_api_examples/BaseMotionAction.h>
 
@@ -115,15 +116,27 @@ public:
     }
 
     // Replan given the current command
-    base_.startVelControl(cmd_vel.linear.x, cmd_vel.angular.z, ::ros::Time::now().toSec());
+    if (parked_) {
+        base_.setUsePositionTarget(true);
+        base_.startVelControl(0.0, 0.0, ::ros::Time::now().toSec());
+    } else {
+        base_.setUsePositionTarget(false);
+        base_.startVelControl(cmd_vel.linear.x, cmd_vel.angular.z, ::ros::Time::now().toSec());
+    }
   }
 
   void setActionServer(actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server) {
     action_server_ = action_server;
   }
 
+  bool setParked(std_srvs::SetBool::Request& request, std_srvs::SetBool::Response& response) {
+    parked_ = request.data;
+    return true;
+  }
+
 private:
   DiffDrive<wheels>& base_; 
+  bool parked_ = false;
 
   actionlib::SimpleActionServer<hebi_cpp_api_examples::BaseMotionAction>* action_server_ {nullptr};
 };
@@ -201,6 +214,8 @@ int main(int argc, char ** argv) {
   // Explicitly set the target velocity
   ros::Subscriber set_velocity_subscriber =
     node.subscribe<geometry_msgs::Twist>("cmd_vel", 1, &hebi::ros::BaseNode<4>::updateVelocity, &base_node);
+
+  ros::ServiceServer parking_brake = node.advertiseService("~park", &hebi::ros::BaseNode<4>::setParked, &base_node);
 
   /////////////////// Main Loop ///////////////////
 

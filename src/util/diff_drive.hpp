@@ -116,6 +116,9 @@ public:
   // Replan trajectory for velocity control
   void startVelControl(double dx, double dtheta, double time);
 
+  void setUsePositionTarget(bool flag) { use_position_target_ = flag; }
+  bool getUsePositionTarget() { return use_position_target_; }
+
 private:
   DiffDrive(std::shared_ptr<Group> group,
     DiffDriveTrajectory<wheels> base_trajectory,
@@ -125,6 +128,8 @@ private:
   /* Declare main kinematic variables */
   static constexpr double wheel_radius_ = 0.13; // m
   static constexpr double base_radius_ = 0.235; // m (half of distance between center of diff drive wheels)
+
+  bool use_position_target_ = {false};
 
   std::shared_ptr<Group> group_;
 

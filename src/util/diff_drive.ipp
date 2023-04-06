@@ -252,9 +252,9 @@ void DiffDrive<wheels>::updateOdometry(const Eigen::Vector4d& wheel_vel, double 
   double base_dtheta = (left_vel + right_vel) / (-2.0 * base_radius_);
 
   //ROS_WARN_STREAM("Wheel vels:\n" << wheel_vel);
-  ROS_WARN_STREAM("L: " << left_vel << " R: " << right_vel);
-  ROS_WARN_STREAM("X: " << base_dx);
-  ROS_WARN_STREAM("Theta: " << base_dtheta);
+  //ROS_WARN_STREAM("L: " << left_vel << " R: " << right_vel);
+  //ROS_WARN_STREAM("X: " << base_dx);
+  //ROS_WARN_STREAM("Theta: " << base_dtheta);
   //ROS_WARN_STREAM("X: " << base_dx << " Theta: " << base_dtheta);
 
   local_vel_[0] = base_dx;
@@ -275,6 +275,7 @@ void DiffDrive<wheels>::updateOdometry(const Eigen::Vector4d& wheel_vel, double 
 
 template <int wheels>
 bool DiffDrive<wheels>::update(double time) {
+  auto nan = std::numeric_limits<double>::quiet_NaN();
 
   double dt = 0;
   if (last_time_ < 0) { // Sentinel value set when we restart...
@@ -288,7 +289,12 @@ bool DiffDrive<wheels>::update(double time) {
 
   // Update command from trajectory
   base_trajectory_.getState(time, pos_, vel_, accel_);
-  command_.setPosition(start_wheel_pos_ + pos_);
+  if (use_position_target_) {
+    command_.setPosition(start_wheel_pos_ + pos_);
+  } else {
+    pos_.setConstant(nan);
+    command_.setPosition(pos_);
+  }
   command_.setVelocity(vel_);
 
   updateOdometry(feedback_.getVelocity(), dt);
