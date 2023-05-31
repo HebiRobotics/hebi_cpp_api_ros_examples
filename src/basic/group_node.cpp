@@ -1,6 +1,5 @@
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+#include "rclcpp/rclcpp.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 #include <actionlib/server/simple_action_server.h>
 
@@ -62,7 +61,7 @@ public:
                         hebi_cpp_api_examples::SetGains::Response& res) {
     hebi::GroupCommand gains_cmd(group_->size());
     auto file_path = ::ros::package::getPath(req.gains_package) + std::string("/") + req.gains_file;
-    ROS_INFO_STREAM("Loading gains from " << file_path);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("group_node"), "Loading gains from " << file_path);
     if (!gains_cmd.readGains(file_path))
       return false;
     return group_->sendCommand(gains_cmd);
@@ -70,7 +69,7 @@ public:
 
   void setJointSetpoint(trajectory_msgs::JointTrajectoryPoint joint_setpoint) {
     if (trajectory_) {
-      ROS_INFO("Cancelling trajectory, switching to setpoint control");
+      RCLCPP_INFO(rclcpp::get_logger("group_node"), "Cancelling trajectory, switching to setpoint control");
     }
     trajectory_ = nullptr;
     trajectory_start_time_ = std::numeric_limits<double>::quiet_NaN();
@@ -106,12 +105,12 @@ public:
       if (cmd_waypoint.positions.size() != num_joints ||
           cmd_waypoint.velocities.size() != num_joints ||
           cmd_waypoint.accelerations.size() != num_joints) {
-        ROS_ERROR_STREAM("Position, velocity, and acceleration sizes not correct for waypoint index " << waypoint);
+        RCLCPP_ERR_STREAM(rclcpp::get_logger("group_node"), "Position, velocity, and acceleration sizes not correct for waypoint index " << waypoint);
         return;
       }
 
       if (cmd_waypoint.effort.size() != 0) {
-        ROS_WARN_STREAM("Effort commands in trajectories not supported; ignoring");
+        RCLCPP_WARN(rclcpp::get_logger("group_node"), "Effort commands in trajectories not supported; ignoring");
       }
 
       for (size_t joint = 0; joint < num_joints; ++joint) {
@@ -166,7 +165,7 @@ public:
     } else {
       if (!message_cleared_ && (message_timeout_ > 0) && (t > (last_setpoint_time_ + message_timeout_))) {
         message_cleared_ = true;
-        ROS_WARN("No setpoint message received within message_timeout, clearing setpoint.");
+        RCLCPP_WARN(rclcpp::get_logger("group_node"), "No setpoint message received within message_timeout, clearing setpoint.");
         Eigen::VectorXd clear(group_->size());
         auto nan = std::numeric_limits<double>::quiet_NaN();
         for(size_t i=0; i < group_->size(); ++i) {
@@ -222,7 +221,7 @@ private:
         angles.cols() != accelerations.cols()    ||
         angles.cols() != times.size()            ||
         angles.cols() == 0) {
-      ROS_ERROR("Angles, velocities, accelerations, or times were not the correct size");
+      RCLCPP_ERR(rclcpp::get_logger("group_node"), "Angles, velocities, accelerations, or times were not the correct size");
       return;
     }
 
@@ -272,7 +271,7 @@ private:
     }
 
     // Create new trajectory
-    ROS_INFO("Creating new trajectory");
+    RCLCPP_INFO(rclcpp::get_logger("group_node"), "Creating new trajectory");
     trajectory_ = hebi::trajectory::Trajectory::createUnconstrainedQp(
                   waypoint_times, new_positions, &new_velocities, &new_accelerations);
     trajectory_start_time_ = last_time_;
@@ -302,47 +301,47 @@ private:
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "group_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("group_node");
 
   /////////////////// Load parameters ///////////////////
 
   // Get parameters for name/family of modules; default to standard values:
   std::vector<std::string> families;
   if (node.hasParam("families") && node.getParam("families", families)) {
-    ROS_INFO("Found and successfully read 'families' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'families' parameter");
   } else {
-    ROS_WARN("Could not find/read 'families' parameter; defaulting to 'HEBI'");
+    RCLCPP_WARN(node->get_logger(), "Could not find/read 'families' parameter; defaulting to 'HEBI'");
     families = {"HEBI"};
   }
 
   std::vector<std::string> names;
   if (node.hasParam("names") && node.getParam("names", names)) {
-    ROS_INFO("Found and successfully read 'names' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'names' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'names' parameter; aborting!");
+    RCLCPP_ERROR(node->get_logger(), "Could not find/read required 'names' parameter; aborting!");
     return -1;
   }
 
   // Read the package + path for the gains file
   std::string gains_package;
   if (node.hasParam("gains_package") && node.getParam("gains_package", gains_package)) {
-    ROS_INFO("Found and successfully read 'gains_package' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'gains_package' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gains_package' parameter; aborting!");
+    RCLCPP_ERR(node->get_logger(), "Could not find/read required 'gains_package' parameter; aborting!");
     return -1;
   }
   std::string gains_file;
   if (node.hasParam("gains_file") && node.getParam("gains_file", gains_file)) {
-    ROS_INFO("Found and successfully read 'gains_file' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'gains_file' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gains_file' parameter; aborting!");
+    RCLCPP_ERR(node->get_logger(), "Could not find/read required 'gains_file' parameter; aborting!");
     return -1;
   }
 
   double message_timeout;
   if (node.hasParam("message_timeout") && node.getParam("message_timeout", message_timeout)) {
-    ROS_INFO("Found and successfully read 'message_timeout' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'message_timeout' parameter");
   } else {
     message_timeout = 0.0;
   }
@@ -354,20 +353,20 @@ int main(int argc, char ** argv) {
     if (group) {
       break;
     }
-    ROS_WARN("Could not find group actuators, trying again...");
+    RCLCPP_WARN(node->get_logger(), "Could not find group actuators, trying again...");
     ros::Duration(1.0).sleep();
   }
 
   if (!group) {
-    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+    RCLCPP_ERR(node->get_logger(), "Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
   }
 
   hebi::GroupCommand gains_cmd(group->size());
   if (!gains_cmd.readGains(::ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
-    ROS_ERROR("Could not load gains file. Attempting to continue.");
+    RCLCPP_ERR(node->get_logger(), "Could not load gains file. Attempting to continue.");
   } else if (!group->sendCommandWithAcknowledgement(gains_cmd)){
-    ROS_ERROR("Could not set group gains. Attempting to continue.");
+    RCLCPP_ERR(node->get_logger(), "Could not set group gains. Attempting to continue.");
   }
 
   /////////////////// Initialize ROS interface ///////////////////
@@ -381,16 +380,16 @@ int main(int argc, char ** argv) {
 
   /////////////////// Main Loop ///////////////////
 
-  while (::ros::ok()) {
+  while (::rclcpp::ok()) {
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
     if (!group_node.update(::ros::Time::now().toSec()))
-      ROS_WARN("Error Getting Feedback/Sending Commands -- Check Connection");
+      RCLCPP_WARN(node->get_logger(), "Error Getting Feedback/Sending Commands -- Check Connection");
 
     group_node.publishState();
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

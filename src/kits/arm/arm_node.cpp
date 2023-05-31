@@ -1,18 +1,21 @@
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+//#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
+//#include <ros/console.h>
+#include <ament_index_cpp/get_package_share_directory.hpp>
+//#include <ros/package.h>
 
-#include <actionlib/server/simple_action_server.h>
 
-#include <geometry_msgs/Point.h>
-#include <trajectory_msgs/JointTrajectory.h>
-#include <sensor_msgs/JointState.h>
-#include <geometry_msgs/Inertia.h>
-#include <std_srvs/SetBool.h>
+//#include <actionlib/server/simple_action_server.h>
 
-#include <hebi_cpp_api_examples/TargetWaypoints.h>
-#include <hebi_cpp_api_examples/ArmMotionAction.h>
-#include <hebi_cpp_api_examples/SetIKSeed.h>
+#include <geometry_msgs/msg/point.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
+#include <geometry_msgs/msg/inertia.hpp>
+#include <std_srvs/srv/set_bool.hpp>
+
+#include <hebi_cpp_api_examples/msg/target_waypoints.hpp>
+#include <hebi_cpp_api_examples/action/ArmMotionAction.hpp>
+#include <hebi_cpp_api_examples/srv/set_ik_seed.hpp>
 
 #include "hebi_cpp_api/group_command.hpp"
 
@@ -236,8 +239,8 @@ public:
 
     hebi_cpp_api_examples::ArmMotionFeedback feedback;
 
-    while (true) {
-      if (action_server_.isPreemptRequested() || !::ros::ok()) {
+    while (!arm_.atGoal()) {
+      if (action_server_.isPreemptRequested() || !::rclcpp::ok()) {
         ROS_INFO("Arm motion action was preempted");
         setColor({0,0,0,0});
         // Note -- the `startArmMotion` function will not be called until the
@@ -246,7 +249,7 @@ public:
         return;
       }
 
-      if (!action_server_.isActive() || !::ros::ok()) {
+      if (!action_server_.isActive() || !::rclcpp::ok()) {
         ROS_INFO("Arm motion was cancelled");
         setColor({0,0,0,0});
         return;
@@ -257,10 +260,6 @@ public:
       // Publish progress:
       feedback.percent_complete = arm_.goalProgress() * 100.0;
       action_server_.publishFeedback(feedback);
- 
-      if (arm_.atGoal()) {
-        break;
-      }
 
       // Limit feedback rate
       r.sleep(); 
@@ -461,17 +460,17 @@ bool loadParam(ros::NodeHandle node, std::string varname, T& var) {
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "arm_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("arm_node");
 
   /////////////////// Load parameters ///////////////////
 
   // Get parameters for name/family of modules; default to standard values:
   std::vector<std::string> families;
   if (node.hasParam("families") && node.getParam("families", families)) {
-    ROS_INFO("Found and successfully read 'families' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'families' parameter");
   } else {
-    ROS_WARN("Could not find/read 'families' parameter; defaulting to 'HEBI'");
+    RCLCPP_WARN(node->get_logger(), "Could not find/read 'families' parameter; defaulting to 'HEBI'");
     families = {"HEBI"};
   }
 
@@ -491,16 +490,16 @@ int main(int argc, char ** argv) {
   success = success && loadParam(node, "hrdf_file", hrdf_file);
 
   if(!success) {
-    ROS_ERROR("Could not find one or more required parameters; aborting!");
+    RCLCPP_ERROR(node->get_logger(), "Could not find one or more required parameters; aborting!");
     return -1;
   }
 
   // Get the "home" position for the arm
   std::vector<double> home_position_vector;
   if (node.hasParam("home_position") && node.getParam("home_position", home_position_vector)) {
-    ROS_INFO("Found and successfully read 'home_position' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'home_position' parameter");
   } else {
-    ROS_WARN("Could not find/read 'home_position' parameter; defaulting to all zeros!");
+    RCLCPP_WARN(node->get_logger(), "Could not find/read 'home_position' parameter; defaulting to all zeros!");
   }
 
   /////////////////// Initialize arm ///////////////////
@@ -514,7 +513,8 @@ int main(int argc, char ** argv) {
     return ros::Time::now().toSec() - start_time;
   };
 
-  params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
+  //params.hrdf_file_ = ros::package::getPath(hrdf_package) + std::string("/") + hrdf_file;
+  params.hrdf_file_ = ament_index_cpp::get_package_share_directory(hard_package) + std::string("/") + hrdf_file;
 
   auto arm = arm::Arm::create(params);
   for (int num_tries = 0; num_tries < 3; num_tries++) {
@@ -522,7 +522,7 @@ int main(int argc, char ** argv) {
     if (arm) {
       break;
     }
-    ROS_WARN("Could not initialize arm, trying again...");
+    RCLCPP_WARN(node->get_logger(), "Could not initialize arm, trying again...");
     ros::Duration(1.0).sleep();
   }
 
@@ -531,13 +531,13 @@ int main(int argc, char ** argv) {
     for(auto it = names.begin(); it != names.end(); ++it) {
         ROS_ERROR_STREAM("> " << *it);
     }
-    ROS_ERROR("Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
+    RCLCPP_ERROR(node->get_logger(), "Could not initialize arm! Check for modules on the network, and ensure good connection (e.g., check packet loss plot in Scope). Shutting down...");
     return -1;
   }
 
   // Load the appropriate gains file
-  if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
-    ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
+  if (!arm->loadGains(ament_index_cpp::get_package_share_directory(gains_package) + std::string("/") + gains_file)) {
+    RCLCPP_ERROR(node->get_logger(), "Could not load gains file and/or set arm gains. Attempting to continue.");
   }
 
   // Get the home position, defaulting to (nearly) zero
@@ -547,7 +547,7 @@ int main(int argc, char ** argv) {
       home_position[i] = 0.01; // Avoid common singularities by being slightly off from zero
     }
   } else if (home_position_vector.size() != arm->size()) {
-    ROS_ERROR("'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
+    RCLCPP_ERROR(node->get_logger(), "'home_position' parameter not the same length as HRDF file's number of DoF! Aborting!");
     return -1;
   } else {
     for (size_t i = 0; i < home_position.size(); ++i) {
@@ -570,7 +570,7 @@ int main(int argc, char ** argv) {
     node.getParam("ik_seed", ik_seed);
     arm_node.setIKSeed(ik_seed);
   } else {
-    ROS_WARN("Param ik_seed not set, arm may exhibit erratic behavior");
+    RCLCPP_WARN(node->get_logger(), "Param ik_seed not set, arm may exhibit erratic behavior");
   }
 
   /////////////////// Main Loop ///////////////////
@@ -584,15 +584,15 @@ int main(int argc, char ** argv) {
   arm->setGoal(arm::Goal::createFromPosition(home_position));
 
   auto prev_t = t;
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
     t = ros::Time::now();
 
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
     if (!arm->update())
-      ROS_WARN("Error Getting Feedback -- Check Connection");
+      RCLCPP_WARN(node->get_logger(), "Error Getting Feedback -- Check Connection");
     else if (!arm->send())
-      ROS_WARN("Error Sending Commands -- Check Connection");
+      RCLCPP_WARN(node->get_logger(), "Error Sending Commands -- Check Connection");
 
     arm_node.publishState();
 
@@ -604,7 +604,7 @@ int main(int argc, char ** argv) {
     prev_t = t;
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

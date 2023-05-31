@@ -1,10 +1,10 @@
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+#include "rclcpp/rclcpp.hpp"
+//#include <ros/console.h>
+//#include <ros/package.h>
 
-#include <geometry_msgs/Twist.h>
-#include <std_msgs/Bool.h>
-#include <std_msgs/Float64.h>
+#include <geometry_msgs/msg/twist.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/float64.hpp>
 
 #include "hebi_cpp_api_examples/SaveWaypoint.h"
 #include "hebi_cpp_api_examples/Playback.h"
@@ -14,8 +14,8 @@
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "controller");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("controller");
 
   std::string family;
   if (node.hasParam("family") && node.getParam("family", family)) {
@@ -74,7 +74,7 @@ int main(int argc, char ** argv) {
 
   bool got_feedback{};
 
-  while(ros::ok()) {
+  while(rclcpp::ok()) {
     // Get next IO feedback state
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
 
@@ -178,7 +178,7 @@ int main(int argc, char ** argv) {
     send_count = send_count % send_period;
 
     // Call any pending callbacks (note -- there are none right now)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
       
   io->setLedColor(255, 255, 255);

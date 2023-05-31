@@ -1,4 +1,4 @@
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 #include <geometry_msgs/Twist.h>
 
 #include <hebi_cpp_api_examples/BaseMotionAction.h>
@@ -15,8 +15,8 @@
 
 #include "src/util/odom_publisher.hpp"
 
-#include <ros/console.h>
-#include <ros/package.h>
+//#include <ros/console.h>
+//#include <ros/package.h>
 
 namespace hebi {
 namespace ros {
@@ -61,7 +61,7 @@ public:
     hebi_cpp_api_examples::BaseMotionFeedback feedback;
 
     while (true) {
-      if (action_server_->isPreemptRequested() || !::ros::ok()) {
+      if (action_server_->isPreemptRequested() || !::rclcpp::ok()) {
         ROS_INFO("Base motion was preempted");
         base_.clearColor();
         // Note -- the `startBaseMotion` function will not be called until the
@@ -70,7 +70,7 @@ public:
         return;
       }
 
-      if (!action_server_->isActive() || !::ros::ok()) {
+      if (!action_server_->isActive() || !::rclcpp::ok()) {
         ROS_INFO("Base motion was cancelled");
         base_.clearColor();
         return;
@@ -128,8 +128,8 @@ private:
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "mecanum_base_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("mecanum_base_node");
 
   // Get parameters for name/family of modules; default to standard values:
   std::vector<std::string> families;
@@ -201,7 +201,7 @@ int main(int argc, char ** argv) {
   double t_now;
 
   // Main command loop
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
 
     auto t = ros::Time::now();
 
@@ -214,7 +214,7 @@ int main(int argc, char ** argv) {
       odom_publisher->send(t, base->getGlobalPose(), base->getGlobalVelocity());
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

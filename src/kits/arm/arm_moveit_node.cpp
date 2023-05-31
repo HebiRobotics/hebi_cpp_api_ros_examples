@@ -1,6 +1,5 @@
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+#include "rclcpp/rclcpp.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 #include <actionlib/server/action_server.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
@@ -227,8 +226,8 @@ bool loadParam(ros::NodeHandle node, std::string varname, T& var) {
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "arm_moveit_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("arm_moveit_node");
 
   /////////////////// Load parameters ///////////////////
 
@@ -299,7 +298,7 @@ int main(int argc, char ** argv) {
   }
 
   // Load the appropriate gains file
-  if (!arm->loadGains(ros::package::getPath(gains_package) + std::string("/") + gains_file)) {
+  if (!arm->loadGains(ament_index_cpp::get_package_share_directory(gains_package) + std::string("/") + gains_file)) {
     ROS_ERROR("Could not load gains file and/or set arm gains. Attempting to continue.");
   }
 
@@ -339,7 +338,7 @@ int main(int argc, char ** argv) {
   arm->setGoal(arm::Goal::createFromPosition(home_position));
 
   auto prev_t = t;
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
     t = ros::Time::now();
 
     // Update feedback, and command the arm to move along its planned path
@@ -355,7 +354,7 @@ int main(int argc, char ** argv) {
     prev_t = t;
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

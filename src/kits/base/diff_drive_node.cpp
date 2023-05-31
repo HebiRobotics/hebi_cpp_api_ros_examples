@@ -1,5 +1,5 @@
-#include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
+#include "rclcpp/rclcpp.hpp"
+#include <geometry_msgs/msg/twist.hpp>
 
 #include <hebi_cpp_api_examples/BaseMotionAction.h>
 
@@ -13,8 +13,8 @@
 
 #include "src/util/diff_drive.hpp"
 
-#include <ros/console.h>
-#include <ros/package.h>
+//#include <ros/console.h>
+//#include <ros/package.h>
 
 namespace hebi {
 namespace ros {
@@ -34,7 +34,7 @@ public:
 
     // Wait until the action is complete, sending status/feedback along the way.
     while (true) {
-      if (action_server_->isPreemptRequested() || !::ros::ok()) {
+      if (action_server_->isPreemptRequested() || !::rclcpp::ok()) {
         ROS_INFO("Preempted base motion");
         action_server_->setPreempted();
         return false;
@@ -131,8 +131,8 @@ private:
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "diff_drive_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("diff_drive_node");
 
   // Get parameters for name/family of modules; default to standard values:
   std::vector<std::string> families;
@@ -187,7 +187,7 @@ int main(int argc, char ** argv) {
   /////////////////// Main Loop ///////////////////
 
   // Main command loop
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
 
     auto t = ros::Time::now().toSec();
 
@@ -197,7 +197,7 @@ int main(int argc, char ** argv) {
       ROS_WARN("Error Getting Feedback -- Check Connection");
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

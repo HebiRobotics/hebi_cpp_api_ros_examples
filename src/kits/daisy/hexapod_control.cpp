@@ -10,7 +10,7 @@
 #include <thread>
 #include <string>
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 #include <ros/package.h>
 
 #include <geometry_msgs/Twist.h>
@@ -93,8 +93,8 @@ private:
 int main(int argc, char** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "hexapod_control");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("hexapod_control");
 
   /////////////////// Initialize hexapod ///////////////////
 
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
   double dt = 0;
 
   // Main command loop
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
 
     // Timekeeping:
     auto t = ros::Time::now().toSec();
@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
     hex_ros_if.publishFeedback(hexapod->getLastFeedback());
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
 
     period.sleep();
   }

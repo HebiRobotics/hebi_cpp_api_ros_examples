@@ -1,9 +1,8 @@
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+//#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 
-#include <geometry_msgs/Twist.h>
-#include <std_msgs/Bool.h>
+#include <geometry_msgs/msg/twist.h>
+#include <std_msgs/msg/bool.hpp>
 
 #include "input/mobile_io.hpp"
 
@@ -20,25 +19,33 @@ float applyDeadZone(float raw, float dead_zone) {
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "controller");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("controller");
 
   // Create mobile IO connection
   auto io = hebi::MobileIO::create("Daisy", "mobileIO");
   // Configure the mobile IO app; keep trying until we succeed for each of these!
-  while (!io->setSnap(3, 0)) { ROS_WARN("Error while setting Mobile IO state"); }
-  while (!io->setButtonMode(1, hebi::MobileIO::ButtonMode::Toggle)) { ROS_WARN("Error while setting Mobile IO state"); }
-  while (!io->setButtonOutput(1, 1)) { ROS_WARN("Error while setting Mobile IO state"); }
-  while (!io->setButtonOutput(8, 1)) { ROS_WARN("Error while setting Mobile IO state"); }
+  while (!io->setSnap(3, 0)) {
+    RCLCPP_WARN(node->get_logger(), "Error while setting Mobile IO state");
+  }
+  while (!io->setButtonMode(1, hebi::MobileIO::ButtonMode::Toggle)) {
+    RCLCPP_WARN(node->get_logger(), "Error while setting Mobile IO state");
+  }
+  while (!io->setButtonOutput(1, 1)) {
+    RCLCPP_WARN(node->get_logger(), "Error while setting Mobile IO state");
+  }
+  while (!io->setButtonOutput(8, 1)) {
+    RCLCPP_WARN(node->get_logger(), "Error while setting Mobile IO state");
+  }
 
   using ButtonState = hebi::MobileIODiff::ButtonState;
 
   // Initialize ROS interface
-  ros::Publisher velocity_pub = node.advertise<geometry_msgs::Twist>("velocity_command", 100);
-  geometry_msgs::Twist velocity_msg;
+  ros::Publisher velocity_pub = node.advertise<geometry_msgs::msg::Twist>("velocity_command", 100);
+  geometry_msgs::msg::Twist velocity_msg;
 
-  ros::Publisher mode_select_pub = node.advertise<std_msgs::Bool>("mode_select", 100);
-  std_msgs::Bool mode_select_msg;
+  ros::Publisher mode_select_pub = node.advertise<std_msgs::msg::Bool>("mode_select", 100);
+  std_msgs::msg::Bool mode_select_msg;
 
   /////////////////// Main Loop ///////////////////
 
@@ -50,7 +57,7 @@ int main(int argc, char ** argv) {
   // Main command loop
   auto last_state = io->getState();
   bool got_feedback{};
-  while(ros::ok()) {
+  while(rclcpp::ok()) {
 
     // Get next IO feedback state
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
@@ -93,7 +100,7 @@ int main(int argc, char ** argv) {
     }
 
     // Call any pending callbacks (note -- there are none right now)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

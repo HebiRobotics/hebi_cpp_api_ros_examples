@@ -1,6 +1,6 @@
 #include "mobile_io.hpp"
 
-#include "ros/ros.h" // For ROS_WARN
+#include "rclcpp/rclcpp.hpp" // For ROS_WARN
 
 #include "hebi_cpp_api/lookup.hpp"
 #include "hebi_cpp_api/group_command.hpp"

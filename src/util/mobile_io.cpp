@@ -1,6 +1,6 @@
 #include "mobile_io.hpp"
 
-#include "ros/ros.h" // For ROS_WARN
+#include "rclcpp/rclcpp.hpp"
 
 #include "hebi_cpp_api/lookup.hpp"
 #include "hebi_cpp_api/group_command.hpp"
@@ -32,7 +32,7 @@ std::unique_ptr<MobileIO> MobileIO::create(const std::string& family, const std:
   hebi::Lookup lookup;
   std::shared_ptr<hebi::Group> group;
   while (!group) {
-    ROS_WARN("Looking for Mobile IO Controller");
+    RCLCPP_WARN(rclcpp::get_logger("mio_create"), "Looking for Mobile IO Controller");
     group = lookup.getGroupFromNames({ family }, { name });
   }
   return std::unique_ptr<MobileIO>(new MobileIO(group));

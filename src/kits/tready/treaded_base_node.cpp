@@ -5,14 +5,13 @@
  * @since 19 Nov 2021
  */
 
-#include <geometry_msgs/Twist.h>
-#include <ros/console.h>
-#include <ros/package.h>
-#include <ros/ros.h>
-#include <std_msgs/ColorRGBA.h>
-#include <hebi_cpp_api_examples/FlipperVelocityCommand.h>
-#include <hebi_cpp_api_examples/TreadedBaseState.h>
-#include <std_srvs/SetBool.h>
+#include "rclcpp/rclcpp.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
+#include <hebi_cpp_api_examples/msg/flipper_velocity_command.hpp>
+#include <hebi_cpp_api_examples/msg/treaded_base_state.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include "robot/treaded_base.hpp"
 
@@ -60,24 +59,24 @@ bool alignService(std_srvs::SetBool::Request& flipper_command, std_srvs::SetBool
 
 // Initialize ROS node
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "treaded_base_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("treated_base_node");
 
   /////////////////// Load parameters ///////////////////
 
   // Read the package + path for the gains file
   std::string gains_package;
   if (node.hasParam("gains_package") && node.getParam("gains_package", gains_package)) {
-    ROS_INFO("Found and successfully read 'gains_package' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'gains_package' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gains_package' parameter; aborting!");
+    RCLCPP_ERR(node->get_logger(), "Could not find/read required 'gains_package' parameter; aborting!");
     return -1;
   }
   std::string gains_file;
   if (node.hasParam("gains_file") && node.getParam("gains_file", gains_file)) {
-    ROS_INFO("Found and successfully read 'gains_file' parameter");
+    RCLCPP_INFO(node->get_logger(), "Found and successfully read 'gains_file' parameter");
   } else {
-    ROS_ERROR("Could not find/read required 'gains_file' parameter; aborting!");
+    RCLCPP_ERR(node->get_logger(), "Could not find/read required 'gains_file' parameter; aborting!");
     return -1;
   }
   std::string gains_path = ros::package::getPath(gains_package) + std::string("/") + gains_file;
@@ -91,7 +90,7 @@ int main(int argc, char** argv) {
     base = std::move(std::get<0>(res));
     error = std::move(std::get<1>(res));
     if (!base) {
-      ROS_ERROR("%s", error.c_str());
+      RCLCPP_ERR(node->get_logger(), "%s", error.c_str());
       return -1;
     }
   }
@@ -149,14 +148,14 @@ int main(int argc, char** argv) {
   /////////////////// Main Loop ///////////////////
 
   // Main command loop
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
     auto t = ::ros::Time::now().toSec();
     base->update(t);
     if (!base->hasActiveTrajectory())
       global_homing = false;
     base->send();
     send_node_state_update();
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

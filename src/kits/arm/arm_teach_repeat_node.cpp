@@ -1,8 +1,8 @@
 #include "arm_teach_repeat_node.hpp"
 
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+#include "rclcpp/rclcpp.hpp"
+//#include <ros/console.h>
+//#include <ros/package.h>
 
 #include "hebi_cpp_api/group_command.hpp"
 #include "hebi_cpp_api/robot_model.hpp"
@@ -280,8 +280,8 @@ bool loadRequiredParam(ros::NodeHandle& node, Param& param, const std::string& p
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "arm_teach_repeat_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("arm_teach_repeat_node");
 
   /////////////////// Load parameters ///////////////////
 
@@ -427,7 +427,7 @@ int main(int argc, char ** argv) {
   teach_repeat_node.update(t);
   arm->setGoal(arm::Goal::createFromPosition(home_position));
 
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
     // Update feedback, and command the arm to move along its planned path
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
     t = ros::Time::now().toSec();
@@ -438,7 +438,7 @@ int main(int argc, char ** argv) {
     teach_repeat_node.update(t);
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

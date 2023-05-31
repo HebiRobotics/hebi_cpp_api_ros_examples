@@ -5,9 +5,9 @@
  * @since 19 Apr 2019
  */
 
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+#include "rclcpp/rclcpp.hpp"
+//#include <ros/console.h>
+//#include <ros/package.h>
 
 #include <std_msgs/Float64.h>
 
@@ -24,8 +24,8 @@ void updateGripperEffortScale(std_msgs::Float64 effort_scale) {
 // Initialize ROS node
 int main(int argc, char ** argv) {
 
-  ros::init(argc, argv, "gripper_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("gripper_node");
 
   /////////////////// Load parameters ///////////////////
 
@@ -109,12 +109,12 @@ int main(int argc, char ** argv) {
   /////////////////// Main Loop ///////////////////
 
   // Main command loop
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
     effort_cmd.set(close_effort * gripper_effort_scale);
     group->sendCommand(group_command);
 
     loop_rate.sleep();
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;

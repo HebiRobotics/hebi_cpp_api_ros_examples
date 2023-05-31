@@ -1,6 +1,6 @@
-#include <ros/ros.h>
-#include <ros/console.h>
-#include <ros/package.h>
+#include "rclcpp/rclcpp.hpp"
+//#include <ros/console.h>
+//#include <ros/package.h>
 
 #include <actionlib/server/simple_action_server.h>
 #include <control_msgs/GripperCommandAction.h>
@@ -98,7 +98,7 @@ public:
 
     ROS_INFO("HEBI MoveIt Arm Node executing trajectory");
 
-    if (action_server_->isPreemptRequested() || !::ros::ok()) {
+    if (action_server_->isPreemptRequested() || !::rclcpp::ok()) {
       ROS_INFO("Follow joint trajectory action was preempted");
       // Note -- the `gripperCommand` function will not be called until the
       // action server has been preempted here:
@@ -106,7 +106,7 @@ public:
       return;
     }
 
-    if (!action_server_->isActive() || !::ros::ok()) {
+    if (!action_server_->isActive() || !::rclcpp::ok()) {
       ROS_INFO("Follow joint trajectory was cancelled");
       return;
     }
@@ -174,8 +174,8 @@ private:
 int main(int argc, char ** argv) {
 
   // Initialize ROS node
-  ros::init(argc, argv, "moveit_gripper_node");
-  ros::NodeHandle node;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("moveit_gripper_node");
 
   /////////////////// Load parameters ///////////////////
 
@@ -266,7 +266,7 @@ int main(int argc, char ** argv) {
 
   /////////////////// Main Loop ///////////////////
 
-  while (ros::ok()) {
+  while (rclcpp::ok()) {
 
     // Update feedback, and command the gripper
     // (this also acts as a loop-rate limiter so no 'sleep' is needed)
@@ -274,7 +274,7 @@ int main(int argc, char ** argv) {
       ROS_WARN("Error Getting Feedback -- Check Connection");
 
     // Call any pending callbacks (note -- this may update our planned motion)
-    ros::spinOnce();
+    rclcpp::spin_some(node);
   }
 
   return 0;
