@@ -134,8 +134,6 @@ int main(int argc, char** argv) {
   ros::Publisher state_publisher = node.advertise<hebi_cpp_api_examples::TreadedBaseState>("state", 100);
 
   auto send_node_state_update = [&base, &state_msg, &state_publisher](){
-    state_msg.flippers_locked = base->alignedFlipperMode();
-    state_msg.flippers_aligned = base->flippersAligned();
     state_msg.flipper_trajectory_active = base->hasActiveFlipperTrajectory();
     state_msg.base_trajectory_active = base->hasActiveBaseTrajectory();
     state_msg.mstop_pressed = base->isMStopActive();

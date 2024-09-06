@@ -36,6 +36,7 @@ add_message_files(
   FILES
   EndPath.msg
   FlipperVelocityCommand.msg
+  TorqueModeCommand.msg
   OffsetPlayback.msg
   Playback.msg
   SaveWaypoint.msg
@@ -233,4 +234,8 @@ install(TARGETS
   hexapod_control
   hexapod_controller
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+catkin_install_python(PROGRAMS scripts/tready/tready_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}/scripts
 )
