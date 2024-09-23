@@ -9,5 +9,5 @@ string message
 int8 state
 bool flipper_trajectory_active
 bool base_trajectory_active
-bool torque_mode
+bool stable_mode
 bool mstop_pressed
