@@ -1,3 +1,5 @@
 # Parameters for the gains
 gains_package: "hebi_cpp_api_examples"
 gains_file: "config/gains/r-tready-gains.xml"
+hrdf_package: "hebi_cpp_api_examples"
+hrdf_file: "config/hrdf/Tready.hrdf"
