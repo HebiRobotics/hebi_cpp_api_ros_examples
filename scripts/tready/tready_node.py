@@ -6,6 +6,7 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import ColorRGBA
 from std_srvs.srv import Trigger, SetBool, TriggerResponse, SetBoolResponse
 from hebi_cpp_api_examples.msg import FlipperVelocityCommand, TorqueModeCommand, TreadedBaseState
+from hebi_cesar.ros_utils import loginfo, logwarn, logerr
 import os
 from enum import Enum, auto
 
@@ -19,21 +20,6 @@ if typing.TYPE_CHECKING:
     from typing import Optional
     import numpy.typing as npt
     from hebi._internal.group import Group
-
-def printlog(level, msg, *args, **kwargs):
-    node_name = rospy.get_name()
-    formatted_msg = f"[{node_name}] {msg}"
-    
-    if level == rospy.DEBUG:
-        rospy.logdebug(formatted_msg, *args, **kwargs)
-    elif level == rospy.INFO:
-        rospy.loginfo(formatted_msg, *args, **kwargs)
-    elif level == rospy.WARN:
-        rospy.logwarn(formatted_msg, *args, **kwargs)
-    elif level == rospy.ERROR:
-        rospy.logerr(formatted_msg, *args, **kwargs)
-    elif level == rospy.FATAL:
-        rospy.logfatal(formatted_msg, *args, **kwargs)
 
 
 class TreadedBase:
@@ -163,7 +149,7 @@ class TreadedBase:
             self.group.get_next_feedback(reuse_fbk=self.fbk)
 
         if self.flipper_traj is None and self.chassis_traj is None:
-            # printlog(rospy.WARN, "No trajectories, zeroing velocity")
+            # logwarn("No trajectories, zeroing velocity")
             self.cmd.velocity = 0.0
         else:
             if self.chassis_traj is not None:
@@ -330,25 +316,25 @@ class TreadyControl:
     
     def set_torque_max(self, torque: float):
         if not np.isfinite(torque):
-            printlog(rospy.ERROR, self.namespace + "Torque must be finite")
+            logerr(self.namespace + "Torque must be finite")
             return
         self.torque_max = min(self.base.TORQUE_MAX, torque)
     
     def set_torque_angle(self, angle: float):
         if not np.isfinite(angle):
-            printlog(rospy.ERROR, self.namespace + "Angle must be finite")
+            logerr(self.namespace + "Angle must be finite")
             return
         self.torque_angle = np.clip(angle, 0, np.pi/2)
     
     def set_roll_adjust(self, adjust: float):
         if not np.isfinite(adjust):
-            printlog(rospy.ERROR, self.namespace + "Roll adjustment must be finite")
+            logerr(self.namespace + "Roll adjustment must be finite")
             return
         self.roll_adjust = np.clip(adjust, 0, 1)
     
     def set_pitch_adjust(self, adjust: float):
         if not np.isfinite(adjust):
-            printlog(rospy.ERROR, self.namespace + "Pitch adjustment must be finite")
+            logerr(self.namespace + "Pitch adjustment must be finite")
             return
         self.pitch_adjust = np.clip(adjust, 0, 1)
 
@@ -364,7 +350,7 @@ class TreadyControl:
 
         if self.state is self.state.EMERGENCY_STOP:
             if not self.base.mstop_pressed:
-                printlog(rospy.INFO, self.namespace + "Emergency Stop Released")
+                loginfo(self.namespace + "Emergency Stop Released")
                 self.transition_to(t_now, self.state.TELEOP)
         
         # After startup, transition to homing
@@ -384,13 +370,13 @@ class TreadyControl:
             # Check for home button
             elif tready_input.home:
                 if tready_input.stable_mode:
-                    printlog(rospy.ERROR, self.namespace + "Cannot home in torque mode")
+                    logerr(self.namespace + "Cannot home in torque mode")
                     return
                 self.transition_to(t_now, self.state.HOMING)
             # Check for flipper alignment
             elif tready_input.align_flippers:
                 if tready_input.stable_mode:
-                    printlog(rospy.ERROR, self.namespace + "Cannot align flippers in torque mode")
+                    logerr(self.namespace + "Cannot align flippers in torque mode")
                     return
                 self.transition_to(t_now, self.state.ALIGNING)
             else:
@@ -437,27 +423,27 @@ class TreadyControl:
             return
 
         if state is self.state.HOMING:
-            printlog(rospy.INFO, self.namespace + "TRANSITIONING TO HOMING")
+            loginfo(self.namespace + "TRANSITIONING TO HOMING")
             self.base.set_color('magenta')
             self.base.home(t_now)
         
         elif state is self.state.ALIGNING:
-            printlog(rospy.INFO, self.namespace + "TRANSITIONING TO ALIGNING")
+            loginfo(self.namespace + "TRANSITIONING TO ALIGNING")
             self.base.set_color('magenta')
             self.base.align_flippers(t_now)
 
         elif state is self.state.TELEOP:
-            printlog(rospy.INFO, self.namespace + "TRANSITIONING TO TELEOP")
+            loginfo(self.namespace + "TRANSITIONING TO TELEOP")
             self.base.set_color('transparent')
         
         elif state is self.state.EMERGENCY_STOP:
-            printlog(rospy.WARN, self.namespace + "Emergency Stop Pressed, disabling motion")
+            logwarn(self.namespace + "Emergency Stop Pressed, disabling motion")
             self.base.set_color('yellow')
             self.base.chassis_traj = None
             self.base.flipper_traj = None
 
         elif state is self.state.EXIT:
-            printlog(rospy.INFO, self.namespace + "TRANSITIONING TO EXIT")
+            loginfo(self.namespace + "TRANSITIONING TO EXIT")
             self.base.set_color('red')
 
         self.state = state
@@ -472,7 +458,7 @@ def load_gains(group, gains_file):
     try:
         gains_command.read_gains(gains_file)
     except Exception as e:
-        printlog(rospy.WARN, f'Warning - Could not load gains: {e}')
+        logwarn(f'Warning - Could not load gains: {e}')
         return False
 
     # Send gains multiple times
@@ -509,7 +495,7 @@ class TreadedBaseNode:
         # Create self.base group
         base_group = lookup.get_group_from_names(family, wheel_names + flipper_names)
         while base_group is None and not rospy.is_shutdown():
-            printlog(rospy.WARN, 'Looking for Tready modules...')
+            logwarn('Looking for Tready modules...')
             rospy.sleep(1)
             base_group = lookup.get_group_from_names(family, wheel_names + flipper_names)
         
@@ -647,7 +633,7 @@ class TreadedBaseNode:
 
 
 def main():
-    rospy.init_node('treaded_base_node', anonymous=True)
+    rospy.init_node('treaded_base_node')
     # Main loop
     rate = rospy.Rate(100)
     tready_node = TreadedBaseNode()
