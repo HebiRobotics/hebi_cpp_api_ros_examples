@@ -18,7 +18,7 @@
     <d_on_error>1 1 1 1 1 1 1 1</d_on_error>
   </position>
   <velocity>
-    <kp>0.03 0.03 0.03 0.03 0.03 0.03 0.03 0.03</kp>
+    <kp>0.03 0.5 0.03 0.5 0.03 0.5 0.03 0.5</kp>
     <ki>0 0 0 0 0 0 0 0</ki>
     <kd>0 0 0 0 0 0 0 0</kd>
     <feed_forward>1 1 1 1 1 1 1 1</feed_forward>

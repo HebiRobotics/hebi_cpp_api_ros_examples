@@ -35,8 +35,8 @@ class TreadedBase:
     #         |
     #   3     |    4
 
-    WHEEL_DIAMETER = 0.125 # m
-    WHEEL_BASE = 0.285 # m
+    WHEEL_DIAMETER = 0.108 # m
+    WHEEL_BASE = 2.05 # m
 
     WHEEL_RADIUS = WHEEL_DIAMETER / 2
 
@@ -289,8 +289,8 @@ class TreadyControl:
         self.state = TreadyControlState.STARTUP
         self.base = base
 
-        self.SPEED_MAX_LIN = 0.45  # m/s
-        self.SPEED_MAX_ROT = self.SPEED_MAX_LIN / (base.WHEEL_BASE / 2) # rad/s
+        self.SPEED_MAX_LIN = 0.15  # m/s
+        self.SPEED_MAX_ROT = np.pi / 20 # rad/s
 
         self.set_default_torque_params()
 
@@ -503,7 +503,7 @@ class TreadedBaseNode:
         if not load_gains(base_group, gains_path):
             rospy.logerr("Failed to load gains!")
 
-        self.base = TreadedBase(base_group, chassis_ramp_time=0.33, flipper_ramp_time=0.1)
+        self.base = TreadedBase(base_group, chassis_ramp_time=0.1, flipper_ramp_time=0.1)
         hrdf_path = os.path.join(RosPack().get_path(hrdf_package), hrdf_file)
         self.base.set_robot_model(hrdf_path)
         self.base_control = TreadyControl(self.base)
