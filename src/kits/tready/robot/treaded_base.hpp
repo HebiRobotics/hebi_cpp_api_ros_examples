@@ -25,8 +25,8 @@ class TreadedBase {
   //         |
   //   3     |    4
 public:
-  static constexpr float WHEEL_DIAMETER = 0.05f;
-  static constexpr float WHEEL_BASE = 0.420f;
+  static constexpr float WHEEL_DIAMETER = 0.105f;
+  static constexpr float WHEEL_BASE = 0.400f;
   static constexpr float WHEEL_RADIUS = WHEEL_DIAMETER / 2.f;
 
   static const Eigen::MatrixXd WHEEL_TO_CHASSIS_VEL;
